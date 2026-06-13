@@ -253,13 +253,60 @@ GET    /api/v1/videos/:id/lipsync/status     — 查询进度
 
 实现: `src/services/guardianService.js`，通过 `setInterval` 运行。
 
-### Week 8B — 宫格图模式
+### Week 8B — 宫格图模式（协议无关）
+
+#### 设计原则
+
+宫格图是**纯图片处理策略**，不绑定任何特定视频模型或协议。它工作在「图片→图片」层，与下游视频生成协议解耦：
 
 ```
-分镜 → 4 个连续分镜合成 2×2 宫格图 → 一次性提交视频模型 → 自动切分回 4 段
+4 张分镜图 → sharp 合成 2×2 宫格图 → 可选提交任意视频协议 → sharp 裁切回 4 段视频
+                         ↓
+              ComfyUI / Kling / Vidu / LTX / ... 任选
 ```
 
-实现: `src/services/gridImageService.js`（sharp 拼接 + 裁切）
+#### 两层架构
+
+| 层 | 职责 | 协议绑定 |
+|------|------|---------|
+| **合成层** (gridImageService) | sharp 拼接 4 图→1 宫格、sharp 裁切 1 视频→4 段 | **无**（纯本地 ffmpeg + sharp） |
+| **分发层** (videoClient) | 将宫格图提交给任意已配置的视频协议 | **透明**（复用现有 `normalizeProtocol` + 协议分发） |
+
+#### 数据流
+
+```
+用户选择「宫格模式」勾选 4 个连续分镜
+  → gridImageService.composeGrid(images[])  → 1 张 2×2 宫格图存入 output/grids/
+  → 用户选择视频协议（如 ComfyUI LTX / Kling / Vidu）
+  → videoClient.generateVideo(gridImage, protocol)  → 复用现有流程，不加新分支
+  → 拿到视频后 gridImageService.decomposeVideo(video, segmentCount=4)
+  → ffmpeg 按时间等分裁切 → 4 个独立分镜视频 → 入库
+```
+
+#### 关键实现
+
+```js
+// src/services/gridImageService.js
+class GridImageService {
+  // 纯 sharp 拼接，4 张 512x512 → 1 张 1024x1024
+  async composeGrid(images, cols = 2, rows = 2) { ... }
+  
+  // 纯 ffmpeg 裁切，48s 视频 → 4 段各 12s
+  async decomposeVideo(videoPath, segmentCount, outputDir) { ... }
+}
+
+// videoClient.js — 无需新增协议！复用现有分发
+// 宫格图就是一张普通图片，走现有的 image-to-video 协议
+```
+
+#### 前端交互
+
+- 分镜列表增加「宫格模式」多选（勾选连续 2-4 个分镜）
+- 勾选后出现「合成宫格图」按钮
+- 生成后可选择**任意已配置的视频协议**提交（下拉选择器，默认走当前项目配置的协议）
+- 视频生成完成后自动裁切回各分镜
+
+实现: `src/services/gridImageService.js`（sharp 拼接 + ffmpeg 裁切）
 
 ---
 
