@@ -1,0 +1,15 @@
+# ComfyUI 远程服务器 SSH 配置
+# 修改以下参数匹配你的租用服务器信息
+#
+# 如何获取：
+#   租用 GPU 服务器后，服务商会提供：
+#   - SSH 地址 (IP/域名)
+#   - SSH 端口
+#   - 用户名 (通常是 root)
+#   - 密码或密钥
+
+HOST=connect.westc.seetacloud.com
+PORT=23011
+USER=root
+REMOTE_PORT=8188
+LOCAL_PORT=8188
