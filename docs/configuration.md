@@ -17,6 +17,11 @@
   - [可用模型](#可用模型-1)
   - [配置示例](#配置示例-1)
 - [本地部署模型（Ollama 等）](#本地部署模型ollama-等)
+- [远程 ComfyUI 服务器（GPU 云服务器）](#远程-comfyui-服务器gpu-云服务器)
+  - [方案架构](#方案架构)
+  - [快速配置步骤](#快速配置步骤)
+  - [完整配置指南](#完整配置指南)
+  - [性能建议](#性能建议)
 - [其他 OpenAI 兼容接口](#其他-openai-兼容接口)
 - [一键配置功能](#一键配置功能)
 - [连接测试](#连接测试)
@@ -170,6 +175,133 @@ API Key：ollama   （或任意字符串，本地服务通常不验证）
 ```
 
 > ⚠️ 本地模型仅适用于**文本生成**，图片和视频生成通常需要专用的云端 API。
+
+---
+
+## 远程 ComfyUI 服务器（GPU 云服务器）
+
+如果你有远程 GPU 服务器（如 AutoDL、SeetaCloud、腾讯云等），可以通过 SSH 隧道连接远程 ComfyUI 服务。
+
+### 方案架构
+
+```
+本地电脑 → SSH 隧道 → 远程 GPU 服务器
+localhost:8188  ←── 端口转发 ──  ComfyUI :8188
+```
+
+### 快速配置步骤
+
+#### 1. 启动远程 ComfyUI
+
+SSH 连接到远程服务器，启动 ComfyUI：
+
+```bash
+ssh -p 23011 root@connect.westc.seetacloud.com
+cd /root/ComfyUI
+python main.py --listen 0.0.0.0 --port 8188
+```
+
+> 💡 建议创建启动脚本 `/root/comfyui_boot.sh`，包含等待网络/GPU 就绪的逻辑。
+
+#### 2. 建立 SSH 隧道
+
+**本地执行**（保持隧道运行）：
+
+```bash
+# 格式：ssh -p <端口> -L <本地端口>:<远程地址>:<远程端口> -N <用户>@<服务器>
+ssh -p 23011 -L 8188:localhost:8188 -N root@connect.westc.seetacloud.com
+```
+
+**Windows 用户**（使用 PuTTY）：
+
+1. Session → Host Name: `connect.westc.seetacloud.com`，Port: `23011`
+2. Connection → SSH → Tunnels:
+   - Source port: `8188`
+   - Destination: `localhost:8188`
+   - 选择 `Local`，点击 `Add`
+3. 点击 `Open` 连接
+
+#### 3. 配置 LocalMiniDrama
+
+在软件内配置：
+
+1. 点击右上角 **「AI 配置」**
+2. 切换到 **「视频生成」** Tab
+3. 新增配置：
+   - **服务商**：`ComfyUI`
+   - **Base URL**：`http://localhost:8188`
+   - **接口规范**：`comfyui`
+   - **设为默认**：✅ 勾选
+4. 点击 **「测试」** 验证连接
+
+#### 4. 配置开机自启动（可选）
+
+如果远程服务器会重启，需要配置 ComfyUI 开机自启动：
+
+**方案 1：通过 cron（推荐）**
+
+在远程服务器执行：
+
+```bash
+crontab -e
+# 在末尾添加
+@reboot sleep 30 && bash /root/comfyui_boot.sh
+```
+
+**方案 2：通过 systemd**
+
+在远程服务器创建 `/etc/systemd/system/comfyui.service`：
+
+```ini
+[Unit]
+Description=ComfyUI Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/ComfyUI
+ExecStart=/usr/bin/python3 /root/ComfyUI/main.py --listen 0.0.0.0 --port 8188
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启用服务：
+
+```bash
+systemctl daemon-reload
+systemctl enable comfyui.service
+systemctl start comfyui.service
+```
+
+### 完整配置指南
+
+详细的配置步骤、故障排查、自动化脚本等，请参考：
+
+📄 **[远程 ComfyUI 服务器连接指南](remote-comfyui-setup.md)**
+
+包含内容：
+- 完整的部署流程（从零开始）
+- SSH 免密登录配置
+- 多种开机自启动方案对比
+- Windows/Mac/Linux 全平台操作
+- 常见问题诊断与解决
+- 自动化部署脚本
+
+---
+
+### 性能建议
+
+| 服务器配置 | 支持模型 | 说明 |
+|-----------|---------|------|
+| RTX 3060 (12GB) | SD1.5 / SDXL | 入门配置，适合测试 |
+| RTX 4080 SUPER (16GB) | SDXL / LTX-Video | 推荐配置，性价比高 |
+| RTX 4090 (24GB) | 所有模型 | 高端配置，适合生产环境 |
+
+> 💡 远程 ComfyUI 适合团队共享，多个用户可连接同一台服务器（注意并发限制）。
 
 ---
 

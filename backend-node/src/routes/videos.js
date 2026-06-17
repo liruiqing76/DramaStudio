@@ -67,7 +67,16 @@ function routes(db, log) {
         ).run(dramaId, storyboardId, provider, prompt, model, duration, aspectRatio, resolution, seed, cameraFixed, watermark, imageUrl, firstFrameUrl, lastFrameUrl, refImagesJson, task.id, now, now);
         const videoGenId = db.prepare('SELECT last_insert_rowid() as id').get().id;
         setImmediate(() => {
-          videoService.processVideoGeneration(db, log, videoGenId);
+          videoService.processVideoGeneration(db, log, videoGenId).catch(err => {
+            log.error('processVideoGeneration failed', { videoGenId, error: err.message, stack: err.stack });
+            const now = new Date().toISOString();
+            db.prepare('UPDATE video_generations SET status = ?, error = ?, updated_at = ? WHERE id = ?')
+              .run('failed', err.message, now, videoGenId);
+            if (task.id) {
+              const taskService = require('../services/taskService');
+              taskService.updateTaskError(db, task.id, err.message);
+            }
+          });
         });
         const item = videoService.getById(db, videoGenId);
         response.created(res, item || { id: videoGenId, task_id: task.id, status: 'processing' });

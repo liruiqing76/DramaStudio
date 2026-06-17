@@ -1,0 +1,24 @@
+#!/usr/bin/expect -f
+
+set timeout 30
+set host "connect.westc.seetacloud.com"
+set port "23011"
+set user "root"
+set password "T9Erp7FBQgdk"
+
+spawn ssh -p $port $user@$host
+
+expect {
+    "yes/no" {
+        send "yes\r"
+        exp_continue
+    }
+    "password:" {
+        send "$password\r"
+    }
+    "Password:" {
+        send "$password\r"
+    }
+}
+
+interact

@@ -91,8 +91,9 @@ function routes(db, log, cfg) {
         const body = req.body || {};
         const sceneId = body.scene_id != null ? Number(body.scene_id) : null;
         if (sceneId == null) return response.badRequest(res, '缺少 scene_id');
+        // 不指定 model，使用默认配置（避免模型名称错误导致 Access denied）
         const out = await sceneService.generateSceneFourViewImage(
-          db, log, cfg, sceneId, body.model || undefined, body.style || undefined
+          db, log, cfg, sceneId, undefined, body.style || undefined
         );
         if (!out.ok) {
           if (out.error === 'scene not found') return response.notFound(res, '场景不存在');

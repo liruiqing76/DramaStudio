@@ -1,0 +1,22 @@
+#!/usr/bin/expect -f
+
+log_user 1
+set timeout 30
+
+spawn ssh -p 23011 root@connect.westc.seetacloud.com "echo '=== Checking ComfyUI ===' && ps aux | grep -i comfy | grep -v grep && echo '=== Port Check ===' && netstat -tlnp 2>/dev/null | grep 8188 || ss -tlnp 2>/dev/null | grep 8188 || echo 'Port 8188 not listening' && echo '=== Done ==='"
+
+expect {
+    "yes/no" {
+        send "yes\r"
+        exp_continue
+    }
+    "password:" {
+        send "T9Erp7FBQgdk\r"
+    }
+    "Password:" {
+        send "T9Erp7FBQgdk\r"
+    }
+    eof
+}
+
+expect eof

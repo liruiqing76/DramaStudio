@@ -1,0 +1,37 @@
+#!/usr/bin/expect -f
+
+set timeout 30
+set host "connect.westc.seetacloud.com"
+set port "23011"
+set user "root"
+set password "T9Erp7FBQgdk"
+
+spawn ssh -p $port $user@$host
+
+expect {
+    "yes/no" {
+        send "yes\r"
+        exp_continue
+    }
+    "*password*" {
+        send "$password\r"
+    }
+}
+
+expect "*#*" {
+    send "find /root -name 'ComfyUI' -type d 2>/dev/null\r"
+}
+
+expect "*#*" {
+    send "pwd\r"
+}
+
+expect "*#*" {
+    send "ps aux | grep comfyui | grep -v grep\r"
+}
+
+expect "*#*" {
+    send "exit\r"
+}
+
+expect eof

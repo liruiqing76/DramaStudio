@@ -1,0 +1,55 @@
+#!/usr/bin/expect -f
+
+set timeout 120
+set host "connect.westc.seetacloud.com"
+set port "23011"
+set user "root"
+set password "T9Erp7FBQgdk"
+
+spawn ssh -p $port $user@$host
+
+expect {
+    "yes/no" {
+        send "yes\r"
+        exp_continue
+    }
+    "*password*" {
+        send "$password\r"
+    }
+}
+
+# 进入custom_nodes目录并克隆LTX Video节点
+expect "*#*" {
+    send "cd /root/ComfyUI/custom_nodes\r"
+}
+
+expect "*#*" {
+    send "pwd\r"
+}
+
+expect "*#*" {
+    send "ls -la\r"
+}
+
+# 检查是否已经克隆过
+expect "*#*" {
+    send "if [ -d ComfyUI-LTXVideo ]; then echo 'Already exists'; else git clone https://github.com/Lightricks/ComfyUI-LTXVideo.git; fi\r"
+}
+
+expect "*#*" {
+    send "cd ComfyUI-LTXVideo\r"
+}
+
+expect "*#*" {
+    send "pip install -r requirements.txt\r"
+}
+
+expect "*#*" {
+    send "echo '=== Install Complete ==='\r"
+}
+
+expect "*#*" {
+    send "exit\r"
+}
+
+expect eof

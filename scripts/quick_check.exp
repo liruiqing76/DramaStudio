@@ -1,0 +1,10 @@
+#!/usr/bin/expect -f
+set timeout 30
+spawn ssh -p 23011 root@connect.westc.seetacloud.com
+expect "*password*"
+send "T9Erp7FBQgdk\r"
+expect "*#*"
+send "ls /root/ComfyUI/custom_nodes/ 2>/dev/null | head -20\r"
+expect "*#*"
+send "exit\r"
+expect eof

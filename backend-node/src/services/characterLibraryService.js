@@ -469,9 +469,20 @@ function buildFourViewImagePrompt(fourViewDescription, styleEn, styleZh) {
   const tailParts = [];
   if (genderEnforcement) tailParts.push(genderEnforcement);
   if (zh || en) tailParts.push(`Reiterate: same art style as above (${en || zh}).`);
+  // 强制生成亚洲人面孔
+  tailParts.push('IMPORTANT: The character MUST be Asian (East Asian appearance, Chinese/Asian face features). 角色必须是亚洲人面孔，中国人长相。');
   const tail = tailParts.length ? `\n\n---\n\n${tailParts.join(' ')}` : '';
 
-  return `${styleHeader}${imageLayoutInstruction}\n\n---\n\n${fourViewDescription}${tail}`;
+  const fullPrompt = `${styleHeader}${imageLayoutInstruction}\n\n---\n\n${fourViewDescription}${tail}`;
+
+  // 限制提示词长度（通义万象等API对提示词长度有限制）
+  const MAX_PROMPT_LENGTH = 1500;
+  if (fullPrompt.length > MAX_PROMPT_LENGTH) {
+    console.warn('[四视图] 提示词过长，截断', { length: fullPrompt.length, max: MAX_PROMPT_LENGTH });
+    return fullPrompt.slice(0, MAX_PROMPT_LENGTH) + '... (truncated)';
+  }
+
+  return fullPrompt;
 }
 
 /**
@@ -529,6 +540,11 @@ async function generateCharacterPromptOnly(db, log, cfg, characterId, modelName,
 }
 
 async function generateCharacterFourViewImage(db, log, cfg, characterId, modelName, style) {
+  // 确保 log 参数存在，否则使用 console
+  if (!log || typeof log.info !== 'function') {
+    log = console;
+  }
+
   const charRow = db.prepare(
     'SELECT id, drama_id, name, appearance, description, polished_prompt, negative_prompt FROM characters WHERE id = ? AND deleted_at IS NULL'
   ).get(Number(characterId));
@@ -587,6 +603,11 @@ async function generateCharacterFourViewImage(db, log, cfg, characterId, modelNa
   }
 
   const userNeg = imageClient.resolveAssetUserNegativeForApi(modelName, charRow.negative_prompt);
+
+  // 动态获取图片配置中的provider，而不是硬编码
+  const imageConfig = imageClient.getDefaultImageConfig(db, modelName, null, 'image');
+  const provider = imageConfig ? imageConfig.provider : 'openai';
+
   const imageGen = imageClient.createAndGenerateImage(db, log, {
     drama_id: charRow.drama_id,
     character_id: charRow.id,
@@ -594,7 +615,7 @@ async function generateCharacterFourViewImage(db, log, cfg, characterId, modelNa
     model: modelName || undefined,
     size: '1792x1024',
     quality: 'standard',
-    provider: 'openai',
+    provider: provider,
     user_negative_prompt: userNeg || undefined,
   });
 

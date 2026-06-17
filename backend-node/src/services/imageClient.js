@@ -894,9 +894,14 @@ async function callDashScopeImageApi(config, log, opts) {
   });
 
   const hasRefs = content.length > 1;
-  const stream = !hasRefs; // enable_interleave=false 时必须 stream=false
+  // 通义万象配置：
+  // - 必须 enable_interleave=true（API强制要求）
+  // - 必须 stream=true（API不支持 stream=false）
+  // 参考：https://help.aliyun.com/zh/model-studio/text-to-image
+  const enableInterleave = true;
+  const stream = true; // 通义万象只支持流式响应
   const body = {
-    model: model || 'wan2.6-image',
+    model: model || undefined,  // 不指定模型时，使用账号默认的模型
     input: {
       messages: [{ role: 'user', content }],
     },
@@ -904,7 +909,7 @@ async function callDashScopeImageApi(config, log, opts) {
       prompt_extend: true,
       watermark: false,
       n: 1,
-      enable_interleave: !hasRefs,
+      enable_interleave: enableInterleave,
       size: dashScopeSize(size),
       stream,
       // 多张参考图时注入 negative_prompt，防止生成分割/拼贴布局
@@ -912,20 +917,20 @@ async function callDashScopeImageApi(config, log, opts) {
     },
   };
   const contentSummary = content.map((p) => (p.text != null ? 'text' : p.image && p.image.startsWith('data:') ? 'image(base64)' : 'image(url)'));
-  log.info('Image API request (DashScope)', {
+    log.info('Image API request (DashScope)', {
     url: url.slice(0, 70),
     model: body.model,
     image_gen_id,
     reference_count: refs.length,
-    enable_interleave: body.parameters.enable_interleave,
-    stream: body.parameters.stream,
+    enable_interleave: enableInterleave,
+    stream: stream,
     content_parts: contentSummary,
   });
   const headers = {
     'Content-Type': 'application/json',
     Authorization: 'Bearer ' + (config.api_key || ''),
   };
-  if (stream) headers['X-DashScope-Sse'] = 'enable';
+  if (stream) headers['x-dashscope-sse'] = 'enable'; // 必须使用小写，否则API报错
   let raw;
   let httpStatus;
   try {

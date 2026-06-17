@@ -2412,28 +2412,47 @@ async function callComfyUiVideoApi(config, log, opts) {
   // 替换workflow中的占位符
   workflow = substituteWorkflowPlaceholders(workflow, opts, log);
 
+  // 详细日志：打印完整workflow以便调试
   log.info('[ComfyUI] 提交workflow', { 
     url: promptUrl, 
     prompt: prompt?.slice(0, 100),
-    video_gen_id 
+    video_gen_id,
+    workflow: JSON.stringify(workflow, null, 2)
   });
 
   try {
+    console.log('[ComfyUI] 准备发送请求', { url: promptUrl, video_gen_id });
+    log.info('[ComfyUI] 发送请求到ComfyUI', { url: promptUrl, video_gen_id });
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30秒超时
+    
     const res = await fetch(promptUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         prompt: workflow, 
         extra_data: {},
-        // 可选：指定输出目录
-        // outputs: storage_local_path 
       }),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeout);
+    console.log('[ComfyUI] 收到响应', { status: res.status, video_gen_id });
+    log.info('[ComfyUI] 收到响应', { status: res.status, video_gen_id });
 
     if (!res.ok) {
       const raw = await res.text();
-      log.error('[ComfyUI] 提交workflow失败', { status: res.status, body: raw.slice(0, 500), video_gen_id });
-      return { error: `ComfyUI提交workflow失败: ${res.status} - ${raw.slice(0, 200)}` };
+      let errorDetail = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.node_errors) {
+          errorDetail = JSON.stringify(parsed.node_errors, null, 2);
+          log.error('[ComfyUI] 节点验证失败', { node_errors: parsed.node_errors, video_gen_id });
+        }
+      } catch (e) {}
+      log.error('[ComfyUI] 提交workflow失败', { status: res.status, body: raw, video_gen_id });
+      return { error: `ComfyUI提交workflow失败: ${res.status} - ${errorDetail.slice(0, 500)}` };
     }
 
     const data = await res.json();
@@ -2448,8 +2467,21 @@ async function callComfyUiVideoApi(config, log, opts) {
     return { task_id: promptId, status: 'processing' };
 
   } catch (e) {
-    log.error('[ComfyUI] 请求异常', { error: e.message, video_gen_id });
-    return { error: 'ComfyUI请求异常: ' + e.message };
+    let errorMsg = e.message;
+    if (e.name === 'AbortError') {
+      errorMsg = '请求超时（30秒）';
+    } else if (e.code === 'ECONNREFUSED') {
+      errorMsg = '连接被拒绝，请检查ComfyUI是否运行在 ' + promptUrl;
+    } else if (e.code === 'ENOTFOUND') {
+      errorMsg = '无法解析主机名';
+    }
+    log.error('[ComfyUI] 请求异常', { 
+      error: errorMsg, 
+      error_code: e.code, 
+      error_name: e.name,
+      video_gen_id 
+    });
+    return { error: 'ComfyUI请求异常: ' + errorMsg };
   }
 }
 
@@ -2466,38 +2498,33 @@ function buildDefaultLtxWorkflow(opts, settings, log) {
   const isImageToVideo = (image_url || opts.first_frame_url || '').toString().trim().length > 0;
 
   // 文生视频 (T2V) 标准 workflow
-  // 使用 ComfyUI 真实节点: CheckpointLoaderSimple, CLIPLoader, CLIPTextEncode,
+  // 使用 ComfyUI 真实节点: LTXVLoader, CLIPTextEncode,
   //   EmptyLTXVLatentVideo, LTXVScheduler, LTXVConditioning, KSamplerSelect,
-  //   SamplerCustom, VAEDecode, VHS_VideoCombine
+  //   LTXVSampler, VAEDecode, CreateVideo, SaveVideo
   const workflow = {
     "1": {
-      "class_type": "CheckpointLoaderSimple",
+      "class_type": "LTXVLoader",
       "inputs": {
-        "ckpt_name": "ltx-video-2b-v0.9.5.safetensors"
+        "ltxv_model": "ltx-video-2b-v0.9.5.safetensors",
+        "text_encoder": "t5xxl_fp8_e4m3fn.safetensors",
+        "vae": "auto"
       }
     },
     "2": {
-      "class_type": "CLIPLoader",
+      "class_type": "CLIPTextEncode",
       "inputs": {
-        "clip_name": "t5xxl_fp8_e4m3fn.safetensors",
-        "type": "ltxv"
+        "text": "{{prompt}}",
+        "clip": ["1", 1]
       }
     },
     "3": {
       "class_type": "CLIPTextEncode",
       "inputs": {
-        "text": "{{prompt}}",
-        "clip": ["2", 0]
+        "text": "{{negative_prompt}}",
+        "clip": ["1", 1]
       }
     },
     "4": {
-      "class_type": "CLIPTextEncode",
-      "inputs": {
-        "text": "{{negative_prompt}}",
-        "clip": ["2", 0]
-      }
-    },
-    "5": {
       "class_type": "EmptyLTXVLatentVideo",
       "inputs": {
         "width": "{{width}}",
@@ -2506,7 +2533,7 @@ function buildDefaultLtxWorkflow(opts, settings, log) {
         "batch_size": 1
       }
     },
-    "6": {
+    "5": {
       "class_type": "LTXVScheduler",
       "inputs": {
         "steps": "{{steps}}",
@@ -2514,54 +2541,56 @@ function buildDefaultLtxWorkflow(opts, settings, log) {
         "base_shift": 0.95,
         "stretch": true,
         "terminal": 0.1,
-        "latent": ["5", 0]
+        "latent": ["4", 0]
       }
     },
-    "7": {
+    "6": {
       "class_type": "LTXVConditioning",
       "inputs": {
-        "positive": ["3", 0],
-        "negative": ["4", 0],
+        "positive": ["2", 0],
+        "negative": ["3", 0],
         "frame_rate": 25.0
       }
     },
-    "8": {
+    "7": {
       "class_type": "KSamplerSelect",
       "inputs": {
         "sampler_name": "{{sampler_name}}"
       }
     },
-    "9": {
-      "class_type": "SamplerCustom",
+    "8": {
+      "class_type": "LTXVSampler",
       "inputs": {
         "model": ["1", 0],
-        "add_noise": true,
-        "noise_seed": "{{seed}}",
-        "cfg": "{{cfg}}",
-        "positive": ["7", 0],
-        "negative": ["7", 1],
-        "sampler": ["8", 0],
-        "sigmas": ["6", 0],
-        "latent_image": ["5", 0]
+        "positive": ["6", 0],
+        "negative": ["6", 1],
+        "sampler": ["7", 0],
+        "sigmas": ["5", 0],
+        "latent_image": ["4", 0],
+        "noise_seed": "{{seed}}"
       }
     },
-    "10": {
+    "9": {
       "class_type": "VAEDecode",
       "inputs": {
-        "samples": ["9", 0],
+        "samples": ["8", 0],
         "vae": ["1", 2]
       }
     },
-    "11": {
-      "class_type": "VHS_VideoCombine",
+    "10": {
+      "class_type": "CreateVideo",
       "inputs": {
-        "images": ["10", 0],
-        "frame_rate": 25,
-        "loop_count": 1,
-        "filename_prefix": "{{filename_prefix}}",
-        "format": "video/h264-mp4",
-        "pingpong": false,
-        "save_output": true
+        "images": ["9", 0],
+        "fps": 25.0
+      }
+    },
+    "11": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": ["10", 0],
+        "filename_prefix": "LTXV/drama",
+        "format": "mp4",
+        "codec": "h264"
       }
     }
   };
@@ -2576,7 +2605,9 @@ function buildDefaultLtxWorkflow(opts, settings, log) {
  */
 function substituteWorkflowPlaceholders(workflow, opts, log) {
   const { prompt, negative_prompt, image_url, seed, duration, aspect_ratio, resolution } = opts;
-  const actualSeed = seed !== undefined ? seed : Math.floor(Math.random() * 1000000000000);
+  const actualSeed = (seed !== undefined && seed !== null && String(seed) !== 'null' && String(seed) !== 'undefined') 
+    ? Number(seed) 
+    : Math.floor(Math.random() * 1000000000000);
 
   // 解析分辨率 - 默认1920x1080
   let width = 1920, height = 1080;
