@@ -25,7 +25,7 @@ video:
   generation_timeout_minutes: 30
 ai:
   default_text_provider: deepseek
-  default_image_provider: openai
+  default_image_provider: comfyui
   default_video_provider: comfyui
 style:
   default_style: ''

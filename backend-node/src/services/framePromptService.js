@@ -94,32 +94,61 @@ function loadStoryboard(db, storyboardId) {
 }
 
 /**
+ * Hex色值→自然语言颜色（Wan2.1 不理解 #1A0A00 这种Hex值）
+ * 常见短剧角色颜色映射
+ */
+function hexToNaturalColor(key, hexOrText) {
+  if (!hexOrText || hexOrText === 'unspecified') return hexOrText;
+  // 如果已经是自然语言，直接返回
+  if (!hexOrText.startsWith('#')) return hexOrText;
+  
+  const h = hexOrText.toUpperCase();
+  const colorMap = {
+    // 头发
+    '#1A0A00': '乌黑', '#3A2A1A': '深棕', '#3B2F2F': '深褐', '#2B1A0F': '深黑棕',
+    '#000000': '纯黑', '#8B4513': '棕色', '#D2691E': '深棕',
+    // 眼睛
+    '#5C4033': '温暖的棕色',
+    // 皮肤
+    '#FDE8D0': '白皙', '#FDEBD0': '白皙偏暖', '#D2A679': '小麦色', '#FFDAB9': '蜜桃白',
+    '#FFF0DB': '象牙白', '#E8D0B3': '自然肤色',
+    // 服装
+    '#FF4500': '亮橙红', '#F5F5DC': '米色', '#000000': '黑色', '#FFFFFF': '白色',
+    '#FF0000': '红色', '#0000FF': '蓝色', '#808080': '灰色',
+  };
+  
+  if (colorMap[h]) return colorMap[h];
+  
+  // 未映射的Hex: 尝试根据亮度推断
+  const r = parseInt(h.slice(1,3), 16);
+  const g = parseInt(h.slice(3,5), 16);
+  const b = parseInt(h.slice(5,7), 16);
+  const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+  
+  if (lum < 0.2) return '深色';
+  if (lum < 0.4) return '暗色';
+  if (lum < 0.6) return '中等色';
+  if (lum < 0.8) return '浅色';
+  return '亮色';
+}
+
+/**
  * 将 identity_anchors JSON 转换为适合注入分镜提示词的结构化描述
  * 优先使用结构化锚点，无锚点时 fallback 到 appearance 文本
  */
 function cleanAppearanceForIdentity(appText) {
   if (!appText) return '';
   let t = String(appText).trim();
-  // 去除服装/衣着/配饰等可变描述（中英文常见表述）—— 保留固定身份特征（脸型、发型、肤质、眼神、气质等）
-  const clothingPatterns = [
-    /身穿[^，。；\n]*/g,
-    /穿着[^，。；\n]*/g,
-    /衣着[^，。；\n]*/g,
-    /手持[^，。；\n]*/g,
-    /戴着[^，。；\n]*/g,
-    /围[^，。；\n]*巾/g,
-    /服装[^，。；\n]*/g,
-    /服饰[^，。；\n]*/g,
-    /着装[^，。；\n]*/g,
-    / dressed in [^，。；\n]*/gi,
-    / wearing [^，。；\n]*/gi,
-    / holding [^，。；\n]*/gi,
-    /着[^，。；\n]*鞋/g,
+  // Wan2.1 需要完整外貌+服装描述来保证角色一致性
+  // 不再剥离服装描述，保留完整appearance作为prompt素材
+  // 仅去除冗余的动作描述（手持/戴着 非外观固定特征）
+  const stripPatterns = [
+    /手持[^，。；\n]*/g,   // "手持XX"是动作不是外观
   ];
-  clothingPatterns.forEach((re) => {
+  stripPatterns.forEach((re) => {
     t = t.replace(re, '');
   });
-  // 清理多余标点和空格，保留核心描述
+  // 清理多余标点和空格
   t = t.replace(/[，、；]\s*[，、；]+/g, '，').replace(/^[，、；\s]+|[，、；\s]+$/g, '').replace(/\s+/g, ' ').trim();
   return t;
 }
@@ -142,7 +171,11 @@ function buildCharacterAnchorText(name, anchors, appearance) {
     if (anchors.color_anchors && typeof anchors.color_anchors === 'object') {
       const colors = Object.entries(anchors.color_anchors)
         .filter(([, v]) => v && v !== 'unspecified')
-        .map(([k, v]) => `${k}=${v}`)
+        .map(([k, v]) => {
+          // Wan2.1 不理解 Hex色值，转换为自然语言
+          const natLang = hexToNaturalColor(k, v);
+          return `${k}=${natLang}`;
+        })
         .join(', ');
       if (colors) parts.push(`Colors: ${colors}`);
     }

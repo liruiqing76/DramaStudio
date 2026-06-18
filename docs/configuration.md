@@ -281,7 +281,7 @@ systemctl start comfyui.service
 
 详细的配置步骤、故障排查、自动化脚本等，请参考：
 
-📄 **[远程 ComfyUI 服务器连接指南](remote-comfyui-setup.md)**
+📄 **[远程 ComfyUI 服务器连接指南](deployment-guide.md)**
 
 包含内容：
 - 完整的部署流程（从零开始）

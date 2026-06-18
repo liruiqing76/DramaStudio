@@ -94,22 +94,19 @@ if %errorlevel% neq 0 (
     goto :skip_ssh
 )
 
-:: 读取 SSH 配置（如果存在）
-set SSH_HOST=connect.westc.seetacloud.com
-set SSH_PORT=23011
+:: 读取 SSH 配置（从环境变量或默认值）
+:: 设置方式: set AUTODL_HOST=xxx && set AUTODL_PORT=xxx && start.bat
+if defined AUTODL_HOST (set SSH_HOST=%AUTODL_HOST%) else (set SSH_HOST=)
+if defined AUTODL_PORT (set SSH_PORT=%AUTODL_PORT%) else (set SSH_PORT=)
 set SSH_USER=root
 set REMOTE_PORT=8188
 set LOCAL_PORT=8188
 
-if exist "%ROOT%\ssh_config.txt" (
-    for /f "tokens=1,2 delims==" %%a in (%ROOT%\ssh_config.txt) do (
-        if "%%a"=="HOST" set SSH_HOST=%%b
-        if "%%a"=="PORT" set SSH_PORT=%%b
-        if "%%a"=="USER" set SSH_USER=%%b
-        if "%%a"=="REMOTE_PORT" set REMOTE_PORT=%%b
-        if "%%a"=="LOCAL_PORT" set LOCAL_PORT=%%b
-    )
-    echo [✓] 从 ssh_config.txt 读取 SSH 配置
+if "%SSH_HOST%"=="" (
+    echo [⚠] 未设置 AutoDL SSH 地址，跳过隧道建立
+    echo     设置方式: set AUTODL_HOST=region-1.autodl.pro && set AUTODL_PORT=12345
+    echo     或参考 docs/deployment-guide.md
+    goto :skip_ssh
 )
 
 echo 远程服务器: %SSH_USER%@%SSH_HOST%:%SSH_PORT%
@@ -137,7 +134,7 @@ for /l %%i in (1,1,30) do (
 
 if !TUNNEL_OK! equ 0 (
     echo [⚠] SSH 隧道建立超时，视频生成可能不可用
-    echo     请检查 ssh_config.txt 中的服务器信息是否正确
+    echo     请检查 AutoDL 服务器是否运行
     echo     或手动测试：ssh -p %SSH_PORT% %SSH_USER%@%SSH_HOST%
     echo.
 )

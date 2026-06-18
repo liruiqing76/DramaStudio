@@ -2389,10 +2389,8 @@ async function callComfyUiVideoApi(config, log, opts) {
   }
 
   if (!workflow) {
-    // 最后尝试加载默认的ltx_video_t2v.json
-    const fs = require('fs');
-    const path = require('path');
-    const defaultWfPath = path.resolve(__dirname, '../../configs/comfyui_workflows/ltx_video_t2v.json');
+    // 最后尝试加载默认的wan21_t2v.json
+    const defaultWfPath = path.resolve(__dirname, '../../configs/comfyui_workflows/wan21_t2v.json');
     try {
       if (fs.existsSync(defaultWfPath)) {
         workflow = JSON.parse(fs.readFileSync(defaultWfPath, 'utf8'));
@@ -2405,8 +2403,8 @@ async function callComfyUiVideoApi(config, log, opts) {
 
   if (!workflow) {
     // 构建默认LTX Video workflow（兜底）
-    workflow = buildDefaultLtxWorkflow(opts, settings, log);
-    log.info('[ComfyUI] 使用内置兜底 LTX Video workflow', { video_gen_id });
+    workflow = buildDefaultWan21Workflow(opts, settings, log);
+    log.info('[ComfyUI] 使用内置兜底 Wan2.1 T2V workflow', { video_gen_id });
   }
 
   // 替换workflow中的占位符
@@ -2486,46 +2484,56 @@ async function callComfyUiVideoApi(config, log, opts) {
 }
 
 /**
- * 构建默认LTX Video workflow
- * 注意：此workflow假设ComfyUI已安装LTX Video相关自定义节点
+ * 构建 Wan2.1 T2V 默认 workflow（兜底）
+ * 使用 ComfyUI 内置 Wan2.1 节点
  */
-function buildDefaultLtxWorkflow(opts, settings, log) {
+function buildDefaultWan21Workflow(opts, settings, log) {
   const { prompt, image_url, seed } = opts;
   const actualSeed = seed !== undefined ? seed : Math.floor(Math.random() * 1000000000000);
 
   // 使用占位符模式（走 substituteWorkflowPlaceholders 替换）
-  // 这样可以通过外部配置灵活调整参数
   const isImageToVideo = (image_url || opts.first_frame_url || '').toString().trim().length > 0;
+  const modelFile = isImageToVideo
+    ? 'wan2.1_i2v_480p_14B_fp8_scaled.safetensors'
+    : 'wan2.1_t2v_14B_fp8_scaled.safetensors';
 
-  // 文生视频 (T2V) 标准 workflow
-  // 使用 ComfyUI 真实节点: LTXVLoader, CLIPTextEncode,
-  //   EmptyLTXVLatentVideo, LTXVScheduler, LTXVConditioning, KSamplerSelect,
-  //   LTXVSampler, VAEDecode, CreateVideo, SaveVideo
   const workflow = {
     "1": {
-      "class_type": "LTXVLoader",
+      "class_type": "UNETLoader",
       "inputs": {
-        "ltxv_model": "ltx-video-2b-v0.9.5.safetensors",
-        "text_encoder": "t5xxl_fp8_e4m3fn.safetensors",
-        "vae": "auto"
+        "unet_name": modelFile,
+        "weight_dtype": "default"
       }
     },
     "2": {
-      "class_type": "CLIPTextEncode",
+      "class_type": "CLIPLoader",
       "inputs": {
-        "text": "{{prompt}}",
-        "clip": ["1", 1]
+        "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "type": "wan"
       }
     },
     "3": {
       "class_type": "CLIPTextEncode",
       "inputs": {
-        "text": "{{negative_prompt}}",
-        "clip": ["1", 1]
+        "text": "{{prompt}}",
+        "clip": ["2", 0]
       }
     },
     "4": {
-      "class_type": "EmptyLTXVLatentVideo",
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{negative_prompt}}",
+        "clip": ["2", 0]
+      }
+    },
+    "5": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "wan_2.1_vae.safetensors"
+      }
+    },
+    "6": {
+      "class_type": "EmptyHunyuanLatentVideo",
       "inputs": {
         "width": "{{width}}",
         "height": "{{height}}",
@@ -2533,69 +2541,106 @@ function buildDefaultLtxWorkflow(opts, settings, log) {
         "batch_size": 1
       }
     },
-    "5": {
-      "class_type": "LTXVScheduler",
-      "inputs": {
-        "steps": "{{steps}}",
-        "max_shift": 2.05,
-        "base_shift": 0.95,
-        "stretch": true,
-        "terminal": 0.1,
-        "latent": ["4", 0]
-      }
-    },
-    "6": {
-      "class_type": "LTXVConditioning",
-      "inputs": {
-        "positive": ["2", 0],
-        "negative": ["3", 0],
-        "frame_rate": 25.0
-      }
-    },
     "7": {
-      "class_type": "KSamplerSelect",
+      "class_type": "KSampler",
       "inputs": {
-        "sampler_name": "{{sampler_name}}"
+        "seed": "{{seed}}",
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "model": ["1", 0],
+        "positive": ["3", 0],
+        "negative": ["4", 0],
+        "latent_image": ["6", 0]
       }
     },
     "8": {
-      "class_type": "LTXVSampler",
+      "class_type": "VAEDecode",
       "inputs": {
-        "model": ["1", 0],
-        "positive": ["6", 0],
-        "negative": ["6", 1],
-        "sampler": ["7", 0],
-        "sigmas": ["5", 0],
-        "latent_image": ["4", 0],
-        "noise_seed": "{{seed}}"
+        "samples": ["7", 0],
+        "vae": ["5", 0]
       }
     },
     "9": {
-      "class_type": "VAEDecode",
-      "inputs": {
-        "samples": ["8", 0],
-        "vae": ["1", 2]
-      }
-    },
-    "10": {
-      "class_type": "CreateVideo",
-      "inputs": {
-        "images": ["9", 0],
-        "fps": 25.0
-      }
-    },
-    "11": {
       "class_type": "SaveVideo",
       "inputs": {
-        "video": ["10", 0],
-        "filename_prefix": "LTXV/drama",
-        "format": "mp4",
-        "codec": "h264"
+        "filename_prefix": "{{filename_prefix}}",
+        "images": ["8", 0],
+        "fps": "{{fps}}"
       }
     }
   };
 
   return workflow;
+}
+
+/**
+ * Wan2.1 Prompt适配器
+ * 将SoulLens/分镜指令式prompt转换为Wan2.1能理解的场景描述式prompt
+ * 
+ * Wan2.1的prompt要求:
+ * - 纯场景描述，不要指令格式（镜头标题/动作/结果/景别）
+ * - 中文描述式：人物外貌+服装+动作+环境+光影
+ * - 不要"严禁"规则、不要元指令、不要占位符
+ */
+function adaptPromptForWan21(rawPrompt, log, video_gen_id) {
+  if (!rawPrompt || !rawPrompt.trim()) return '';
+  let p = rawPrompt.trim();
+
+  // 1. 移除SoulLens段标签格式: 主体:/叙事动态:/空间:/镜头:/结果:/景别:/镜头角度:
+  p = p.replace(/^(主体|叙事动态|空间|镜头|结果|景别|镜头角度|对话|环境氛围|声音设计|观众情绪)：/gm, '');
+  
+  // 2. 移除分镜指令式标签: "镜头标题：XXX。动作：XXX。结果：XXX。"
+  p = p.replace(/镜头标题[：:]\s*/g, '');
+  p = p.replace(/动作[：:]\s*/g, '');
+  p = p.replace(/结果[：:]\s*/g, '');
+  p = p.replace(/景别[：:]\s*/g, '');
+  p = p.replace(/镜头角度[：:]\s*/g, '');
+  
+  // 3. 移除括号内的技术参数 (medium shot, close-up, 16:9 等)
+  // 但保留括号内的角色外貌描述
+  p = p.replace(/[（(]\s*?(?:medium shot|close-up|wide shot|full shot|over-the-shoulder|dutch angle|low angle|high angle|bird's eye|worm's eye|16:9|9:16|1:1|4K|8K|UHD|HD|RAW|专业摄影|电影质感|浅景深|深景深)[^）)]*?[）)]/gi, '');
+  
+  // 4. 移除对话内容（"张明：\"XXX\"" 格式，Wan2.1不生成对话文字）
+  p = p.replace(/[^\n，。]*?[：:]\s*[""「『][^""」』]*[""」』]/g, '');
+  
+  // 5. 移除markdown/铁律/规则类内容
+  p = p.replace(/【.*?铁律.*?】/g, '');
+  p = p.replace(/【.*?规则.*?】/g, '');
+  p = p.replace(/【.*?最高优先级.*?】/g, '');
+  p = p.replace(/MANDATORY.*?(?:\n|$)/gi, '');
+  p = p.replace(/FORBIDDEN.*?(?:\n|$)/gi, '');
+  
+  // 6. 清理多余标点和空格
+  p = p.replace(/[。；]\s*[。；]+/g, '，');
+  p = p.replace(/\n\s*\n/g, '，');
+  p = p.replace(/\n/g, '，');
+  p = p.replace(/\s+/g, ' ');
+  p = p.replace(/^[，、；\s]+|[，、；\s]+$/g, '');
+  
+  // 7. 截断到200字（Wan2.1 T2V最佳prompt长度80-200字）
+  if (p.length > 200) {
+    p = p.slice(0, 200).replace(/[，、；\s]+$/, '');
+  }
+  
+  // 8. 如果清洗后太短(< 20字)，用原始prompt的摘要
+  if (p.length < 20 && rawPrompt.length > 20) {
+    // 取第一句作为场景描述
+    const firstSentence = rawPrompt.split(/[。！？\n]/)[0];
+    p = firstSentence.replace(/镜头标题[：:]/, '').trim();
+  }
+  
+  log.info('[Wan2.1 prompt适配]', {
+    original_length: rawPrompt.length,
+    adapted_length: p.length,
+    original_head: rawPrompt.slice(0, 80),
+    adapted: p,
+    video_gen_id,
+  });
+  
+  return p;
 }
 
 /**
@@ -2629,12 +2674,16 @@ function substituteWorkflowPlaceholders(workflow, opts, log) {
   const frames = duration ? Math.round(duration * fps) : 97;  // 默认约4秒
   const actualSteps = 20;
 
+  // Wan2.1 prompt适配: 将SoulLens/分镜指令式prompt转换为场景描述式
+  // Wan2.1不理解"镜头标题/动作/结果/景别"这种格式，需要纯场景描述
+  const wan21Prompt = adaptPromptForWan21(opts.prompt || '', log, video_gen_id);
+
   // 默认负向prompt
-  const defaultNegative = 'low quality, blurry, distorted, bad anatomy, watermark, text, logo, nsfw';
+  const defaultNegative = 'low quality, blurry, distorted, bad anatomy, watermark, text, logo, nsfw, 模糊, 低质量, 变形';
 
   const replacements = {
-    '{{prompt}}': prompt || '',
-    '{{negative_prompt}}': negative_prompt || defaultNegative,
+    '{{prompt}}': wan21Prompt,
+    '{{negative_prompt}}': opts.negative_prompt || defaultNegative,
     '{{image_url}}': image_url || '',
     '{{seed}}': String(actualSeed),
     '{{width}}': String(width),

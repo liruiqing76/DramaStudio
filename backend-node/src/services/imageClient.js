@@ -90,6 +90,7 @@ function getProxyExpireHours() {
  */
 function inferProtocol(provider, model) {
   const p = String(provider || '').toLowerCase();
+  if (p === 'comfyui') return 'comfyui';
   if (p === 'dashscope' || p === 'qwen_image') return 'dashscope';
   if (p === 'nano_banana') return 'nano_banana';
   if (p === 'gemini' || p === 'google') return 'gemini';
@@ -1385,6 +1386,16 @@ async function callImageApi(db, log, opts) {
   const userNegFragment = (user_negative_prompt && String(user_negative_prompt).trim()) || '';
   const mergedNegativePrompt = mergeNegativePromptFragments(autoNegativePrompt, userNegFragment);
 
+  if (protocol === 'comfyui') {
+    return callComfyUIImageApi(config, log, {
+      prompt: effectivePrompt, model, size, image_gen_id,
+      negative_prompt: mergedNegativePrompt,
+      reference_image_urls: opts.reference_image_urls,
+      files_base_url: opts.files_base_url,
+      storage_local_path: opts.storage_local_path,
+    });
+  }
+
   if (protocol === 'dashscope') {
     return callDashScopeImageApi(config, log, {
       prompt: effectivePrompt, model, size, image_gen_id,
@@ -1779,6 +1790,283 @@ function countStoryboardRefsFromLabels(refLabels) {
     else if (/scene background|prop\/object/i.test(lbl)) objects += 1;
   }
   return { characters, objects };
+}
+
+/**
+ * ComfyUI 图片生成 API
+ * 提交 T2I workflow，轮询完成后从 /view 下载图片
+ */
+async function callComfyUIImageApi(config, log, opts) {
+  const { prompt, model, size, image_gen_id, negative_prompt,
+          reference_image_urls, files_base_url, storage_local_path } = opts;
+  const base = (config.base_url || '').replace(/\/$/, '');
+  const promptUrl = base + '/prompt';
+
+  // 解析 settings
+  let settings = {};
+  try { settings = JSON.parse(config.settings || '{}'); } catch (_) {}
+
+  // 构建 Wan2.1 T2I workflow
+  const [imgW, imgH] = (size || '1024x1024').split('x').map(Number);
+  const width = imgW || 1024;
+  const height = imgH || 1024;
+  const actualSeed = Math.floor(Math.random() * 1000000000000);
+  const negPrompt = negative_prompt || 'low quality, blurry, distorted, bad anatomy, watermark, text, logo, nsfw';
+
+  // 根据模型选择workflow
+  const isFunInp = /fun.*inp|inpaint/i.test(model || '');
+  const modelName = model || 'wan2.1_fun_inp_1.3B_bf16.safetensors';
+
+  let workflow;
+
+  // 尝试从 settings 加载自定义 workflow
+  if (settings.workflow_file || settings.workflow_path) {
+    const fs = require('fs');
+    const path = require('path');
+    const wfFile = settings.workflow_file || settings.workflow_path;
+    const filePath = path.isAbsolute(wfFile)
+      ? wfFile
+      : path.resolve(__dirname, '../../configs/comfyui_workflows', wfFile);
+    try {
+      if (fs.existsSync(filePath)) {
+        workflow = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        log.info('[ComfyUI-T2I] 从文件加载workflow', { file: filePath, image_gen_id });
+      }
+    } catch (e) {
+      log.warn('[ComfyUI-T2I] workflow文件加载失败', { file: filePath, error: e.message, image_gen_id });
+    }
+  }
+
+  if (!workflow && settings.workflow_json) {
+    try {
+      workflow = typeof settings.workflow_json === 'string'
+        ? JSON.parse(settings.workflow_json)
+        : settings.workflow_json;
+      log.info('[ComfyUI-T2I] 使用配置中的workflow_json', { image_gen_id });
+    } catch (e) {
+      log.warn('[ComfyUI-T2I] workflow_json解析失败', { error: e.message, image_gen_id });
+    }
+  }
+
+  if (!workflow) {
+    // 兜底: 内置 Wan2.1 Fun InP T2I workflow
+    workflow = buildWan21T2IWorkflow({ prompt, negative_prompt: negPrompt, width, height, seed: actualSeed, model: modelName });
+    log.info('[ComfyUI-T2I] 使用内置 Wan2.1 T2I workflow', { image_gen_id, model: modelName });
+  } else {
+    // 替换占位符
+    workflow = substituteImagePlaceholders(workflow, { prompt, negative_prompt: negPrompt, width, height, seed: actualSeed });
+  }
+
+  log.info('[ComfyUI-T2I] 提交workflow', {
+    url: promptUrl,
+    prompt: prompt?.slice(0, 100),
+    image_gen_id,
+    model: modelName,
+  });
+
+  // 提交 workflow
+  let promptId;
+  try {
+    const res = await fetch(promptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: workflow }),
+    });
+    if (!res.ok) {
+      const raw = await res.text();
+      let errorDetail = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.node_errors) {
+          errorDetail = JSON.stringify(parsed.node_errors, null, 2);
+        }
+      } catch (_) {}
+      return { error: `ComfyUI图片生成提交失败: ${res.status} - ${errorDetail.slice(0, 500)}` };
+    }
+    const data = await res.json();
+    promptId = data.prompt_id;
+    if (!promptId) {
+      return { error: 'ComfyUI未返回prompt_id: ' + JSON.stringify(data).slice(0, 300) };
+    }
+    log.info('[ComfyUI-T2I] Workflow已提交', { prompt_id: promptId, image_gen_id });
+  } catch (e) {
+    let errorMsg = e.message;
+    if (e.code === 'ECONNREFUSED') errorMsg = '连接被拒绝，请检查ComfyUI是否运行在 ' + promptUrl;
+    return { error: 'ComfyUI图片生成请求异常: ' + errorMsg };
+  }
+
+  // 轮询等待完成
+  const pollInterval = settings.poll_interval || 2;
+  const timeout = settings.timeout || 300;
+  const maxAttempts = Math.ceil(timeout / pollInterval);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise(r => setTimeout(r, pollInterval * 1000));
+
+    try {
+      const historyUrl = `${base}/history/${encodeURIComponent(promptId)}`;
+      const res = await fetch(historyUrl);
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      const promptData = data[promptId];
+      if (!promptData) continue; // 任务尚未完成
+
+      if (promptData.error) {
+        const errMsg = typeof promptData.error === 'string' ? promptData.error : JSON.stringify(promptData.error);
+        return { error: 'ComfyUI图片生成失败: ' + errMsg.slice(0, 500) };
+      }
+
+      const outputs = promptData.outputs;
+      if (!outputs) continue; // 执行中
+
+      // 从 outputs 提取图片
+      let imageFile = null;
+      for (const [nodeId, nodeOutput] of Object.entries(outputs)) {
+        if (nodeOutput.images && nodeOutput.images.length > 0) {
+          imageFile = nodeOutput.images[0];
+          break;
+        }
+      }
+
+      if (imageFile) {
+        const params = new URLSearchParams({
+          filename: imageFile.filename,
+          type: imageFile.type || 'output',
+        });
+        if (imageFile.subfolder) params.append('subfolder', imageFile.subfolder);
+        const imageUrl = `${base}/view?${params.toString()}`;
+        log.info('[ComfyUI-T2I] 图片生成完成', { image_url: imageUrl, image_gen_id });
+        return { image_url: imageUrl };
+      }
+
+      // 没找到图片输出
+      return { error: 'ComfyUI任务完成但未找到图片输出' };
+    } catch (e) {
+      log.warn('[ComfyUI-T2I] 轮询异常', { error: e.message, attempt, image_gen_id });
+    }
+  }
+
+  return { error: `ComfyUI图片生成超时 (${timeout}秒)` };
+}
+
+/**
+ * 构建 Wan2.1 Fun InP T2I 默认 workflow
+ * 使用 ComfyUI 内置的 Wan2.1 节点
+ */
+function buildWan21T2IWorkflow(opts) {
+  const { prompt, negative_prompt, width, height, seed, model } = opts;
+  const is14B = /14b/i.test(model || '');
+  const modelFilename = model || 'wan2.1_fun_inp_1.3B_bf16.safetensors';
+
+  return {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": modelFilename,
+        "weight_dtype": "default"
+      }
+    },
+    "2": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "type": "wan"
+      }
+    },
+    "3": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": prompt,
+        "clip": ["2", 0]
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": negative_prompt,
+        "clip": ["2", 0]
+      }
+    },
+    "5": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "wan_2.1_vae.safetensors"
+      }
+    },
+    "6": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": width,
+        "height": height,
+        "batch_size": 1
+      }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": seed,
+        "steps": 20,
+        "cfg": 5.0,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "model": ["1", 0],
+        "positive": ["3", 0],
+        "negative": ["4", 0],
+        "latent_image": ["6", 0]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["7", 0],
+        "vae": ["5", 0]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "drama_t2i",
+        "images": ["8", 0]
+      }
+    }
+  };
+}
+
+/**
+ * 替换图片 workflow 中的占位符
+ */
+function substituteImagePlaceholders(workflow, opts) {
+  const { prompt, negative_prompt, width, height, seed } = opts;
+  const replacements = {
+    '{{prompt}}': prompt || '',
+    '{{negative_prompt}}': negative_prompt || '',
+    '{{seed}}': String(seed),
+    '{{width}}': String(width),
+    '{{height}}': String(height),
+  };
+  const numericFields = new Set(['seed', 'noise_seed', 'width', 'height', 'length', 'batch_size', 'steps', 'denoise']);
+
+  const substituted = JSON.parse(JSON.stringify(workflow));
+  for (const [nodeId, node] of Object.entries(substituted)) {
+    if (node.inputs) {
+      for (const [key, value] of Object.entries(node.inputs)) {
+        if (typeof value === 'string') {
+          let newValue = value;
+          for (const [placeholder, replacement] of Object.entries(replacements)) {
+            if (newValue.includes(placeholder)) {
+              newValue = newValue.replace(placeholder, replacement);
+            }
+          }
+          if (newValue !== value) {
+            node.inputs[key] = numericFields.has(key) ? Number(newValue) || newValue : newValue;
+          }
+        }
+      }
+    }
+  }
+  return substituted;
 }
 
 function canAddStoryboardCharacterRef(refLabels, limits) {

@@ -223,7 +223,7 @@ npm run dev
 start.bat
 ```
 
-📖 **完整部署教程（从租用服务器到生成第一条视频）** → **[模型部署指南](DEPLOY_MODEL.md)**
+📖 **完整部署教程（从租用服务器到生成第一条视频）** → **[模型部署指南](docs/deployment-guide.md)**
 
 ---
 

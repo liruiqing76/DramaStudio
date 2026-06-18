@@ -1246,6 +1246,7 @@ const providerConfigs = {
     { id: 'qwen', name: '通义千问', models: ['qwen3-max', 'qwen-plus', 'qwen-flash'] }
   ],
   image: [
+    { id: 'comfyui', name: 'ComfyUI (本地/远程)', models: ['wan2.1_fun_inp_1.3B_bf16.safetensors', 'wan2.1_t2v_14B_fp8_scaled.safetensors'] },
     { id: 'volcengine', name: '火山引擎', models: ['doubao-seedream-4-5-251128', 'doubao-seedream-4-0-250828'] },
     { id: 'kling', name: '可灵 Kling', models: ['kling-image', 'kling-omni-image'] },
     { id: 'nano_banana', name: 'NanoBanana', models: ['nano-banana-2', 'nano-banana-pro', 'nano-banana'] },
@@ -1256,6 +1257,7 @@ const providerConfigs = {
     { id: 'qwen_image', name: '通义千问', models: ['qwen-image-max', 'qwen-image-plus', 'qwen-image'] }
   ],
   storyboard_image: [
+    { id: 'comfyui', name: 'ComfyUI (本地/远程)', models: ['wan2.1_fun_inp_1.3B_bf16.safetensors', 'wan2.1_t2v_14B_fp8_scaled.safetensors'] },
     { id: 'dashscope', name: '通义万象', models: ['wan2.6-image', 'qwen-image-edit-plus-2026-01-09', 'qwen-image-edit-plus', 'qwen-image-edit-max'] },
     { id: 'volcengine', name: '火山引擎', models: ['doubao-seedream-4-5-251128', 'doubao-seedream-4-0-250828'] },
     { id: 'kling', name: '可灵 Kling', models: ['kling-image', 'kling-omni-image'] },
@@ -1265,6 +1267,7 @@ const providerConfigs = {
     { id: 'openai', name: 'OpenAI', models: ['dall-e-3', 'dall-e-2'] }
   ],
   video: [
+    { id: 'comfyui', name: 'ComfyUI (本地/远程)', models: ['wan2.1-t2v', 'wan2.1-i2v'] },
     { id: 'klingai', name: '可灵官方 Omni (api-beijing.klingai.com)', models: ['kling-video-o1', 'kling-v3-omni'] },
     { id: 'ffir', name: '飞儿API / 可灵 Omni-Video (ffir.cn)', models: ['kling-video-o1', 'kling-v3-omni'] },
     { id: 'kling', name: '可灵 Kling', models: ['kling-omni-video', 'kling-video', 'kling-motion-control'] },
@@ -1299,6 +1302,8 @@ const providerConfigs = {
 
 /** 厂商 id → 默认接口规范（api_protocol） */
 const providerProtocolMap = {
+  // image / storyboard_image / video
+  comfyui: 'comfyui',
   // image / storyboard_image
   volcengine: 'volcengine',
   volces: 'volcengine',
