@@ -10,6 +10,33 @@ const { loadConfig } = require('../config');
 const { postJSONWithTimeout } = require('./aiClient');
 const seedance2AssetGuards = require('../utils/seedance2AssetGuards');
 
+/**
+ * 带自动重试的fetch - 处理网络瞬时故障（隧道断开、ECONNRESET等）
+ * 最多重试3次，指数退避 1s/2s/4s
+ * 仅在网络层错误时重试，HTTP 4xx/5xx 不重试
+ */
+async function fetchWithRetry(url, options, retries = 3, baseDelayMs = 1000) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      if (attempt > 0) {
+        const delay = baseDelayMs * Math.pow(2, attempt - 1);
+        console.log(`[ComfyUI-T2I] 第${attempt}次重试，等待${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+      return await fetch(url, options);
+    } catch (e) {
+      lastError = e;
+      const isNetworkError = e.code === 'ECONNRESET' || e.code === 'ECONNREFUSED' 
+        || e.code === 'ETIMEDOUT' || e.code === 'ENOTFOUND' || e.code === 'EAI_AGAIN'
+        || e.name === 'AbortError' || e.type === 'system' 
+        || e.message?.includes('fetch failed') || e.message?.includes('undici');
+      if (!isNetworkError || attempt >= retries) break;
+    }
+  }
+  throw lastError;
+}
+
 /** 图生 POST 使用 Node http(s)，默认 10 分钟，避免 undici fetch 大包体/慢链路下模糊失败 */
 const IMAGE_HTTP_TIMEOUT_MS = 600000;
 
@@ -2103,6 +2130,165 @@ function refListHasCanonical(list, ref) {
   const key = canonicalRefKey(ref);
   if (!key) return false;
   return (list || []).some((item) => canonicalRefKey(item) === key);
+}
+
+/**
+ * 替换图片 workflow 占位符
+ */
+function substituteImagePlaceholders(workflow, opts) {
+  const { prompt, negative_prompt, width, height, seed, image_url, denoise } = opts;
+  let json = JSON.stringify(workflow);
+  json = json.replace(/\{\{prompt\}\}/g, (prompt || '').replace(/"/g, '\\"'));
+  json = json.replace(/\{\{negative_prompt\}\}/g, (negative_prompt || '').replace(/"/g, '\\"'));
+  json = json.replace(/\{\{seed\}\}/g, String(seed || Math.floor(Math.random() * 1000000000000)));
+  json = json.replace(/\{\{width\}\}/g, String(width || 1024));
+  json = json.replace(/\{\{height\}\}/g, String(height || 1024));
+  json = json.replace(/\{\{image_url\}\}/g, String(image_url || ''));
+  json = json.replace(/\{\{denoise\}\}/g, String(denoise != null ? denoise : 0.7));
+  return JSON.parse(json);
+}
+
+/**
+ * ComfyUI 图片生成 API
+ * 从 configs/comfyui_workflows/flux2_gguf_t2i.json 加载 FLUX.2 GGUF workflow，
+ * 提交后轮询 /history/{prompt_id} 获取图片。
+ */
+async function callComfyUIImageApi(config, log, opts) {
+  const { prompt, model, size, image_gen_id, negative_prompt,
+          reference_image_urls, files_base_url, storage_local_path } = opts;
+  const base = (config.base_url || '').replace(/\/$/, '');
+  const promptUrl = base + '/prompt';
+
+  let settings = {};
+  try { settings = JSON.parse(config.settings || '{}'); } catch (_) {}
+
+  const [imgW, imgH] = (size || '1024x1024').split('x').map(Number);
+  const width = imgW || 1024;
+  const height = imgH || 1024;
+  const actualSeed = Math.floor(Math.random() * 1000000000000);
+  const negPrompt = negative_prompt || 'low quality, blurry, bad anatomy, watermark, text, logo';
+
+  // 判断是否为图生图模式
+  const refs = Array.isArray(reference_image_urls) ? reference_image_urls.filter(Boolean) : [];
+  const isI2I = refs.length > 0 || (settings.mode === 'img2img');
+
+  // 解析首张参考图 URL
+  let imageUrl = '';
+  if (isI2I && refs.length > 0) {
+    const raw = refs[0];
+    const resolved = resolveImageRef(raw, files_base_url, storage_local_path);
+    imageUrl = resolved ? String(resolved) : String(raw || '');
+  }
+
+  let workflow;
+
+  // 从 settings 加载 workflow 文件
+  if (settings.workflow_file || settings.workflow_path) {
+    const fs = require('fs');
+    const path = require('path');
+    const wfFile = settings.workflow_file || settings.workflow_path;
+    const filePath = path.isAbsolute(wfFile)
+      ? wfFile
+      : path.resolve(__dirname, '../../configs/comfyui_workflows', wfFile);
+    try {
+      if (fs.existsSync(filePath)) {
+        workflow = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      }
+    } catch (e) {
+      log.warn('[ComfyUI-T2I] workflow加载失败', { file: filePath, error: e.message });
+    }
+  }
+
+  // 从 settings.workflow_json 加载
+  if (!workflow && settings.workflow_json) {
+    try {
+      workflow = typeof settings.workflow_json === 'string'
+        ? JSON.parse(settings.workflow_json)
+        : settings.workflow_json;
+    } catch (e) {
+      log.warn('[ComfyUI-T2I] workflow_json解析失败', { error: e.message });
+    }
+  }
+
+  // 默认加载 FLUX.2 GGUF 工作流（图生图 / 文生图自动选择）
+  if (!workflow) {
+    const fs = require('fs');
+    const path = require('path');
+    const defaultWfFile = isI2I ? 'flux2_gguf_i2i.json' : 'flux2_gguf_t2i.json';
+    const defaultPath = path.resolve(__dirname, '../../configs/comfyui_workflows', defaultWfFile);
+    try {
+      if (fs.existsSync(defaultPath)) {
+        workflow = JSON.parse(fs.readFileSync(defaultPath, 'utf8'));
+      }
+    } catch (e) {
+      log.warn('[ComfyUI-T2I] 默认workflow加载失败', { error: e.message });
+    }
+  }
+
+  if (!workflow) {
+    return { error: 'ComfyUI图片生成失败: 无可用workflow' };
+  }
+
+  // 替换占位符
+  workflow = substituteImagePlaceholders(workflow, {
+    prompt, negative_prompt: negPrompt, width, height, seed: actualSeed,
+    image_url: imageUrl, denoise: settings.denoise,
+  });
+
+  let promptId;
+  try {
+    const res = await fetchWithRetry(promptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: workflow }),
+    }, 3, 1000);
+    if (!res.ok) {
+      const raw = await res.text();
+      return { error: `ComfyUI提交失败: ${res.status} - ${raw.slice(0, 300)}` };
+    }
+    const data = await res.json();
+    promptId = data.prompt_id;
+    if (!promptId) {
+      return { error: 'ComfyUI未返回prompt_id' };
+    }
+  } catch (e) {
+    if (e.code === 'ECONNREFUSED') return { error: `ComfyUI连接被拒绝(${promptUrl})，已重试3次仍失败` };
+    return { error: 'ComfyUI请求异常（含重试）: ' + e.message };
+  }
+
+  // 轮询
+  const pollInterval = settings.poll_interval || 3;
+  const timeout = settings.timeout || 300;
+  const maxAttempts = Math.ceil(timeout / pollInterval);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise(r => setTimeout(r, pollInterval * 1000));
+    try {
+      const historyUrl = `${base}/history/${encodeURIComponent(promptId)}`;
+      const res = await fetch(historyUrl);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const promptData = data[promptId];
+      if (!promptData) continue;
+      if (promptData.error) {
+        return { error: 'ComfyUI生成失败: ' + String(promptData.error).slice(0, 300) };
+      }
+      const outputs = promptData.outputs;
+      if (!outputs) continue;
+      for (const [, nodeOutput] of Object.entries(outputs)) {
+        if (nodeOutput.images && nodeOutput.images.length > 0) {
+          const img = nodeOutput.images[0];
+          const params = new URLSearchParams({ filename: img.filename, type: img.type || 'output' });
+          if (img.subfolder) params.append('subfolder', img.subfolder);
+          return { image_url: `${base}/view?${params.toString()}` };
+        }
+      }
+      return { error: 'ComfyUI完成但无图片输出' };
+    } catch (e) {
+      log.warn('[ComfyUI-T2I] 轮询异常', { error: e.message, attempt });
+    }
+  }
+  return { error: `ComfyUI图片生成超时 (${timeout}秒)` };
 }
 
 module.exports = {

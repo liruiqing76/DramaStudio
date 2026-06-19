@@ -1,15 +1,16 @@
 {
   "1": {
-    "class_type": "UnetLoaderGGUF",
+    "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "GGUF/flux2-dev-Q4_K_M.gguf"
+      "unet_name": "flux2-dev-Q4_K_M.gguf",
+      "weight_dtype": "default"
     }
   },
   "2": {
     "class_type": "DualCLIPLoader",
     "inputs": {
       "clip_name1": "clip_l.safetensors",
-      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
+      "clip_name2": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
       "type": "flux"
     }
   },
@@ -28,14 +29,25 @@
     }
   },
   "5": {
-    "class_type": "EmptyFlux2LatentImage",
+    "class_type": "VAELoader",
     "inputs": {
-      "width": "{{width}}",
-      "height": "{{height}}",
-      "batch_size": 1
+      "vae_name": "ae.safetensors"
     }
   },
   "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "{{image_url}}"
+    }
+  },
+  "7": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": ["6", 0],
+      "vae": ["5", 0]
+    }
+  },
+  "8": {
     "class_type": "KSampler",
     "inputs": {
       "seed": "{{seed}}",
@@ -43,31 +55,25 @@
       "cfg": 3.5,
       "sampler_name": "euler",
       "scheduler": "normal",
-      "denoise": 1.0,
+      "denoise": "{{denoise}}",
       "model": ["1", 0],
       "positive": ["3", 0],
       "negative": ["4", 0],
-      "latent_image": ["5", 0]
-    }
-  },
-  "7": {
-    "class_type": "VAEDecode",
-    "inputs": {
-      "samples": ["6", 0],
-      "vae": ["8", 0]
-    }
-  },
-  "8": {
-    "class_type": "VAELoader",
-    "inputs": {
-      "vae_name": "ae.safetensors"
+      "latent_image": ["7", 0]
     }
   },
   "9": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["8", 0],
+      "vae": ["5", 0]
+    }
+  },
+  "10": {
     "class_type": "SaveImage",
     "inputs": {
-      "filename_prefix": "flux2",
-      "images": ["7", 0]
+      "filename_prefix": "flux2_i2i",
+      "images": ["9", 0]
     }
   }
 }
