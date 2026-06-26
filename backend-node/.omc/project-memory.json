@@ -1,0 +1,225 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1781844907925,
+  "projectRoot": "D:\\zmzc-code\\ai-drama-refs\\LocalMiniDrama\\backend-node",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": ">=18",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "express",
+        "version": "4.21.0",
+        "category": "backend"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": "Node.js 18"
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": "npm run dev",
+    "scripts": {
+      "start": "node src/server.js",
+      "dev": "node --watch src/server.js",
+      "migrate": "node src/db/migrate.js",
+      "migrate:07": "node scripts/run-migration-07.js"
+    }
+  },
+  "conventions": {
+    "namingStyle": "camelCase",
+    "importStyle": "CommonJS",
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "scripts",
+      "src",
+      "test"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "build": {
+      "path": "build",
+      "purpose": "Build output",
+      "fileCount": 0,
+      "lastAccessed": 1781844907847,
+      "keyFiles": []
+    },
+    "configs": {
+      "path": "configs",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1781844907848,
+      "keyFiles": [
+        "comfyui_ltx_config.json",
+        "config.yaml",
+        "flux2_image_config.sql",
+        "wan22_distill_video_config.sql"
+      ]
+    },
+    "data": {
+      "path": "data",
+      "purpose": "Data files",
+      "fileCount": 3,
+      "lastAccessed": 1781844907889,
+      "keyFiles": [
+        "drama_generator.db",
+        "drama_generator.db-shm",
+        "drama_generator.db-wal"
+      ]
+    },
+    "migrations": {
+      "path": "migrations",
+      "purpose": "Database migrations",
+      "fileCount": 22,
+      "lastAccessed": 1781844907890,
+      "keyFiles": [
+        "01_init.sql",
+        "02_add_default_model.sql",
+        "03_add_props_episode_id.sql",
+        "04_async_tasks_columns.sql",
+        "05_add_image_generations_completed_at.sql"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 58,
+      "lastAccessed": 1781844907890,
+      "keyFiles": [
+        "build_fast_tokenizer.py",
+        "check_cache_model.py",
+        "check_comfy_nodes.py",
+        "check_createvideo.py",
+        "check_custom_sampler.py"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 4,
+      "lastAccessed": 1781844907891,
+      "keyFiles": [
+        "app.js",
+        "logger.js",
+        "response.js",
+        "server.js"
+      ]
+    },
+    "test": {
+      "path": "test",
+      "purpose": "Test files",
+      "fileCount": 3,
+      "lastAccessed": 1781844907892,
+      "keyFiles": [
+        "deepseekConfig.test.js",
+        "jimengMaterialHub.test.js",
+        "libraryDedup.test.js"
+      ]
+    },
+    "tools": {
+      "path": "tools",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1781844907892,
+      "keyFiles": []
+    },
+    "src\\config": {
+      "path": "src\\config",
+      "purpose": "Configuration files",
+      "fileCount": 2,
+      "lastAccessed": 1781844907895,
+      "keyFiles": [
+        "index.js",
+        "videoGeneration.js"
+      ]
+    },
+    "src\\routes": {
+      "path": "src\\routes",
+      "purpose": "Route handlers",
+      "fileCount": 22,
+      "lastAccessed": 1781844907896,
+      "keyFiles": [
+        "aiConfig.js",
+        "assets.js",
+        "audio.js"
+      ]
+    },
+    "src\\services": {
+      "path": "src\\services",
+      "purpose": "Business logic services",
+      "fileCount": 46,
+      "lastAccessed": 1781844907896,
+      "keyFiles": [
+        "aiClient.js",
+        "aiConfigService.js",
+        "angleService.js"
+      ]
+    },
+    "src\\utils": {
+      "path": "src\\utils",
+      "purpose": "Utility functions",
+      "fileCount": 5,
+      "lastAccessed": 1781844907897,
+      "keyFiles": [
+        "dramaStyleMerge.js",
+        "ffmpegPath.js",
+        "framePromptSanitize.js"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "configs\\comfyui_workflows\\wan22_5b_ovi_i2v.json",
+      "accessCount": 4,
+      "lastAccessed": 1781845688523,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\leslie\\AppData\\Local\\Temp\\claude\\D--zmzc-code-ai-drama-refs-LocalMiniDrama\\7ac53b39-1203-404c-b790-fee1814c2599\\tasks\\b0cxgwfxh.output",
+      "accessCount": 1,
+      "lastAccessed": 1781845097369,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\leslie\\AppData\\Local\\Temp\\claude\\D--zmzc-code-ai-drama-refs-LocalMiniDrama\\7ac53b39-1203-404c-b790-fee1814c2599\\tasks\\bi0lr6qwt.output",
+      "accessCount": 1,
+      "lastAccessed": 1781845097430,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\leslie\\AppData\\Local\\Temp\\claude\\D--zmzc-code-ai-drama-refs-LocalMiniDrama\\7ac53b39-1203-404c-b790-fee1814c2599\\tasks\\b182q2tc0.output",
+      "accessCount": 1,
+      "lastAccessed": 1781845097491,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\leslie\\AppData\\Local\\Temp\\claude\\D--zmzc-code-ai-drama-refs-LocalMiniDrama\\7ac53b39-1203-404c-b790-fee1814c2599\\tasks\\bzntel2pi.output",
+      "accessCount": 1,
+      "lastAccessed": 1781845097520,
+      "type": "file"
+    },
+    {
+      "path": "src\\services\\videoClient.js",
+      "accessCount": 1,
+      "lastAccessed": 1781845263924,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

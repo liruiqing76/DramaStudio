@@ -1,0 +1,90 @@
+[config] server.insecure_tls 已启用：全局跳过 TLS 证书校验，仅用于测试
+Ran migration: 01_init.sql #1
+Ran migration: 01_init.sql #2
+Ran migration: 01_init.sql #3
+Ran migration: 01_init.sql #4
+Ran migration: 01_init.sql #5
+Ran migration: 01_init.sql #6
+Ran migration: 01_init.sql #7
+Ran migration: 01_init.sql #8
+Ran migration: 01_init.sql #9
+Ran migration: 01_init.sql #10
+Ran migration: 01_init.sql #11
+Ran migration: 01_init.sql #12
+Ran migration: 01_init.sql #13
+Ran migration: 01_init.sql #14
+Ran migration: 01_init.sql #15
+Ran migration: 01_init.sql #16
+Ran migration: 01_init.sql #17
+Ran migration: 01_init.sql #18
+Skip (already exists): 02_add_default_model.sql
+Skip (already exists): 03_add_props_episode_id.sql
+Skip (already exists): 04_async_tasks_columns.sql #1
+Skip (already exists): 04_async_tasks_columns.sql #2
+Skip (already exists): 04_async_tasks_columns.sql #3
+Skip (already exists): 05_add_image_generations_completed_at.sql #1
+Skip (already exists): 05_add_image_generations_completed_at.sql #2
+Skip (already exists): 06_add_characters_local_path.sql
+Skip (already exists): 07_add_scenes_image_columns.sql #1
+Skip (already exists): 07_add_scenes_image_columns.sql #2
+Skip (already exists): 08_add_video_generations_completed_at.sql #1
+Skip (already exists): 08_add_video_generations_completed_at.sql #2
+Ran migration: 09_scene_prop_libraries.sql #1
+Ran migration: 09_scene_prop_libraries.sql #2
+Ran migration: 10_prompt_overrides.sql
+Skip (already exists): 11_add_api_protocol.sql
+Ran migration: 12_image_proxy_cache.sql
+Skip (already exists): 13_character_identity_anchors.sql #1
+Skip (already exists): 13_character_identity_anchors.sql #2
+Skip (already exists): 13_character_identity_anchors.sql #3
+Skip (already exists): 13_character_identity_anchors.sql #4
+Skip (already exists): 13_character_identity_anchors.sql #5
+Skip (already exists): 13_character_identity_anchors.sql #6
+Skip (already exists): 13_character_identity_anchors.sql #7
+Skip (already exists): 13_character_identity_anchors.sql #8
+Skip (already exists): 13_character_identity_anchors.sql #9
+Skip (already exists): 14_storyboard_segments_and_model_map.sql #1
+Skip (already exists): 14_storyboard_segments_and_model_map.sql #2
+Ran migration: 14_storyboard_segments_and_model_map.sql #3
+Skip (already exists): 15_storyboard_angle_structured.sql #1
+Skip (already exists): 15_storyboard_angle_structured.sql #2
+Skip (already exists): 15_storyboard_angle_structured.sql #3
+Skip (already exists): 16_character_polished_prompt.sql
+Skip (already exists): 17_character_stages.sql
+Skip (already exists): 18_storyboard_narration.sql
+Skip (already exists): 19_storyboard_universal_mode.sql #1
+Skip (already exists): 19_storyboard_universal_mode.sql #2
+Skip (already exists): 20_character_seedance2_asset.sql
+Skip (already exists): 21_asset_negative_prompt.sql #1
+Skip (already exists): 21_asset_negative_prompt.sql #2
+Skip (already exists): 21_asset_negative_prompt.sql #3
+Skip (already exists): 22_library_source_id.sql #1
+Skip (already exists): 22_library_source_id.sql #2
+Skip (already exists): 22_library_source_id.sql #3
+Skip (already exists): 22_library_source_id.sql #4
+Skip (already exists): 22_library_source_id.sql #5
+Skip (already exists): 22_library_source_id.sql #6
+Ran migration: 22_library_source_id.sql #7
+Ran migration: 22_library_source_id.sql #8
+Ran migration: 22_library_source_id.sql #9
+webDist d:\zmzc-code\ai-drama-refs\LocalMiniDrama\frontweb\dist
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:5679
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at node:net:2214:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1984:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 5679
+}
+
+Node.js v24.14.0

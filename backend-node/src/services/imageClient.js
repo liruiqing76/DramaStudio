@@ -2153,6 +2153,80 @@ function substituteImagePlaceholders(workflow, opts) {
  * 从 configs/comfyui_workflows/flux2_gguf_t2i.json 加载 FLUX.2 GGUF workflow，
  * 提交后轮询 /history/{prompt_id} 获取图片。
  */
+
+/**
+ * 上传图片到 ComfyUI 的 /upload/image 接口，返回可用于 LoadImage 节点的文件名。
+ * ComfyUI 的 LoadImage 节点只接受 input/ 目录下的文件名，不支持 URL/base64。
+ * 这对 AutoDL 等远程租卡场景至关重要。
+ */
+async function uploadImageToComfyuiForImageGen(baseUrl, imageUrl, filesBaseUrl, storageLocalPath, log, imageGenId) {
+  if (!imageUrl || !String(imageUrl).trim()) return null;
+
+  // resolveImageRef 已处理过：可能是 data URL、远程 URL 或本地路径
+  // 需要转成 Buffer 再上传
+  let buffer, mime, filename;
+  const s = String(imageUrl).trim();
+
+  // data URL
+  const dataMatch = s.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (dataMatch) {
+    mime = dataMatch[1];
+    const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : (mime.split('/')[1] || 'png');
+    buffer = Buffer.from(dataMatch[2], 'base64');
+    filename = `img_${Date.now()}.${ext}`;
+  } else if (s.startsWith('http://') || s.startsWith('https://')) {
+    // 远程 URL：下载
+    const res = await fetch(s);
+    if (!res.ok) throw new Error(`下载图片失败: ${res.status} ${s}`);
+    buffer = Buffer.from(await res.arrayBuffer());
+    const ct = res.headers.get('content-type') || 'image/png';
+    mime = ct.split(';')[0].trim();
+    const ext = mime === 'image/jpeg' ? 'jpg' : (mime.split('/')[1] || 'png');
+    filename = `img_${Date.now()}.${ext}`;
+  } else {
+    // 本地文件路径：直接读取（resolveImageRef 在远程场景会返回原始路径）
+    // 尝试通过 resolveImageRef 重新解析获取 buffer
+    const resolved = resolveImageRef(s, filesBaseUrl, storageLocalPath);
+    if (!resolved) throw new Error(`无法解析图片: ${s}`);
+    if (resolved.startsWith('data:')) {
+      const m = resolved.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+      if (!m) throw new Error(`无法解析 data URL: ${s}`);
+      mime = m[1];
+      const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : (mime.split('/')[1] || 'png');
+      buffer = Buffer.from(m[2], 'base64');
+      filename = `img_${Date.now()}.${ext}`;
+    } else {
+      // 远程 URL，递归调用下载
+      return uploadImageToComfyuiForImageGen(baseUrl, resolved, filesBaseUrl, storageLocalPath, log, imageGenId);
+    }
+  }
+
+  // 上传到 ComfyUI
+  const uploadUrl = baseUrl.replace(/\/$/, '') + '/upload/image';
+  const boundary = '----ComfyUIUpload' + Math.random().toString(16).slice(2);
+  const body = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="${filename}"\r\nContent-Type: ${mime}\r\n\r\n`),
+    buffer,
+    Buffer.from(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="overwrite"\r\n\r\n1\r\n--${boundary}\r\nContent-Disposition: form-data; name="type"\r\n\r\ninput\r\n--${boundary}--\r\n`),
+  ]);
+
+  const res = await fetchWithRetry(uploadUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+    body,
+  }, 2, 1000);
+  if (!res.ok) {
+    const raw = await res.text().catch(() => '');
+    throw new Error(`ComfyUI上传图片失败: ${res.status} ${raw.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  if (!data.name) {
+    throw new Error('ComfyUI上传图片未返回name: ' + JSON.stringify(data).slice(0, 300));
+  }
+  log.info('[ComfyUI-T2I] 图片已上传到远程服务器', { name: data.name, subfolder: data.subfolder || '', image_gen_id: imageGenId });
+  return data.subfolder ? `${data.subfolder}/${data.name}` : data.name;
+}
+
 async function callComfyUIImageApi(config, log, opts) {
   const { prompt, model, size, image_gen_id, negative_prompt,
           reference_image_urls, files_base_url, storage_local_path } = opts;
@@ -2227,6 +2301,22 @@ async function callComfyUIImageApi(config, log, opts) {
 
   if (!workflow) {
     return { error: 'ComfyUI图片生成失败: 无可用workflow' };
+  }
+
+  // i2i 模式：ComfyUI 的 LoadImage 节点只接受 input/ 目录下的文件名，不支持 URL/base64。
+  // 需要先把图片上传到远程 ComfyUI 服务器，再用返回的文件名替换 imageUrl。
+  // 这对 AutoDL 等远程租卡场景至关重要——远程服务器无法访问本地 localhost URL。
+  if (isI2I && imageUrl) {
+    try {
+      const uploadedName = await uploadImageToComfyuiForImageGen(base, imageUrl, files_base_url, storage_local_path, log, image_gen_id);
+      if (uploadedName) {
+        imageUrl = uploadedName;
+        log.info('[ComfyUI-T2I] i2i 图片已上传，使用文件名作为 LoadImage 输入', { uploaded_name: uploadedName, image_gen_id });
+      }
+    } catch (e) {
+      log.error('[ComfyUI-T2I] i2i 图片上传失败', { error: e.message, image_url: imageUrl, image_gen_id });
+      return { error: 'ComfyUI图片上传失败: ' + e.message };
+    }
   }
 
   // 替换占位符

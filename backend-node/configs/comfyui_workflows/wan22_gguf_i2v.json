@@ -2,7 +2,7 @@
   "1": {
     "class_type": "UnetLoaderGGUF",
     "inputs": {
-      "unet_name": "Wan2.2-I2V-HighNoise-Q4_K_M.gguf"
+      "unet_name": "Wan2.2-I2V-A14B-LowNoise-Q4_K_M.gguf"
     }
   },
   "2": {
@@ -52,6 +52,13 @@
     }
   },
   "9": {
+    "class_type": "ConditioningCombine",
+    "inputs": {
+      "conditioning_1": ["3", 0],
+      "conditioning_2": ["8", 0]
+    }
+  },
+  "10": {
     "class_type": "EmptyHunyuanLatentVideo",
     "inputs": {
       "width": "{{width}}",
@@ -60,33 +67,33 @@
       "batch_size": 1
     }
   },
-  "10": {
+  "11": {
     "class_type": "KSampler",
     "inputs": {
       "seed": "{{seed}}",
       "steps": "{{steps}}",
       "cfg": "{{cfg}}",
-      "sampler_name": "{{sampler_name}}",
+      "sampler_name": "euler",
       "scheduler": "normal",
       "denoise": 1.0,
       "model": ["1", 0],
-      "positive": ["3", 0],
+      "positive": ["9", 0],
       "negative": ["4", 0],
-      "latent_image": ["9", 0]
-    }
-  },
-  "11": {
-    "class_type": "VAEDecode",
-    "inputs": {
-      "samples": ["10", 0],
-      "vae": ["5", 0]
+      "latent_image": ["10", 0]
     }
   },
   "12": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["11", 0],
+      "vae": ["5", 0]
+    }
+  },
+  "13": {
     "class_type": "SaveVideo",
     "inputs": {
       "filename_prefix": "{{filename_prefix}}",
-      "images": ["11", 0],
+      "images": ["12", 0],
       "fps": "{{fps}}"
     }
   }

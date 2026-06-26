@@ -24,14 +24,20 @@
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "{{prompt}}",
-      "clip": ["3", 0]
+      "clip": [
+        "3",
+        0
+      ]
     }
   },
   "5": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "{{negative_prompt}}",
-      "clip": ["3", 0]
+      "clip": [
+        "3",
+        0
+      ]
     }
   },
   "6": {
@@ -55,19 +61,31 @@
   "9": {
     "class_type": "CLIPVisionEncode",
     "inputs": {
-      "clip_vision": ["7", 0],
-      "image": ["8", 0]
+      "clip_vision": [
+        "7",
+        0
+      ],
+      "image": [
+        "8",
+        0
+      ]
     }
   },
   "10": {
     "class_type": "Wan22ImageToVideoLatent",
     "inputs": {
-      "vae": ["6", 0],
+      "vae": [
+        "6",
+        0
+      ],
       "width": "{{width}}",
       "height": "{{height}}",
       "length": "{{frames}}",
       "batch_size": 1,
-      "start_image": ["8", 0]
+      "start_image": [
+        "8",
+        0
+      ]
     }
   },
   "11": {
@@ -79,10 +97,22 @@
       "sampler_name": "{{sampler_name}}",
       "scheduler": "normal",
       "denoise": 1.0,
-      "model": ["1", 0],
-      "positive": ["4", 0],
-      "negative": ["5", 0],
-      "latent_image": ["10", 0]
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "10",
+        0
+      ]
     }
   },
   "12": {
@@ -94,23 +124,44 @@
       "sampler_name": "{{sampler_name}}",
       "scheduler": "normal",
       "denoise": 1.0,
-      "model": ["2", 0],
-      "positive": ["4", 0],
-      "negative": ["5", 0],
-      "latent_image": ["11", 0]
+      "model": [
+        "2",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "11",
+        0
+      ]
     }
   },
   "13": {
     "class_type": "VAEDecode",
     "inputs": {
-      "samples": ["12", 0],
-      "vae": ["6", 0]
+      "samples": [
+        "12",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ]
     }
   },
   "14": {
     "class_type": "CreateVideo",
     "inputs": {
-      "images": ["13", 0],
+      "images": [
+        "13",
+        0
+      ],
       "fps": "{{fps}}"
     }
   },
@@ -118,7 +169,10 @@
     "class_type": "SaveVideo",
     "inputs": {
       "filename_prefix": "{{filename_prefix}}",
-      "video": ["14", 0],
+      "video": [
+        "14",
+        0
+      ],
       "format": "auto",
       "codec": "auto"
     }

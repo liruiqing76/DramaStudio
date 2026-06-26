@@ -1,0 +1,84 @@
+# Reasonix configuration.
+# Resolution order: flag > ./reasonix.toml > ~/AppData/Roaming/reasonix/config.toml > built-in defaults.
+# Secrets come from the environment via api_key_env; never put keys here.
+
+config_version = 3   # schema marker for diagnostics; old versions may ignore it
+default_model = "deepseek-flash"
+# language      = "zh"   # ui/model language; empty = auto-detect from $LANG / $REASONIX_LANG
+
+[agent]
+# system_prompt = """..."""   # omit to use the built-in prompt for this version
+# system_prompt_file = "prompts/system.md"   # overrides system_prompt when set
+# max_steps         = 0   # executor tool-call rounds; 0 = no limit
+# planner_max_steps = 12   # planner read-only tool-call rounds; 0 = no limit
+temperature       = 0.0
+auto_plan   = "off"   # off|on; off keeps plan mode manual
+# reasoning_language = "zh"   # visible reasoning language: auto|zh|en
+# auto_plan_classifier = "deepseek-flash"   # optional; only used for borderline tasks
+soft_compact_ratio  = 0.5   # notice only; keeps cache-first prefix intact
+compact_ratio       = 0.8   # try compacting when prompt reaches this fraction
+compact_force_ratio = 0.9   # force compacting at this high-water mark
+# keep                = ["errors"]   # compaction keep policy: errors, user_marked
+# recent_keep         = 2   # minimum recent messages kept verbatim
+cold_resume_prune   = true   # elide stale tool results when reopening a session past the provider cache window
+# planner_model = "mimo"   # optional: enable two-model collaboration
+# subagent_model = "deepseek-pro"   # optional default for runAs=subagent skills
+# subagent_models = { review = "deepseek-pro", security_review = "deepseek-pro" }   # per-skill overrides
+# subagent_effort = "high"   # optional default effort for subagents
+# subagent_efforts = { review = "max", task = "high" }   # per-tool/skill effort overrides
+# output_style = "explanatory"   # explanatory | learning | concise | custom; empty = default
+
+[tools]
+enabled = []   # empty = all built-in tools
+bash_timeout_seconds = 120   # foreground safety cap; set 0 for no tool-local cap
+
+[tools.background_jobs]
+stalled_warning_seconds = 900   # warn once per background job after this many quiet seconds; 0 disables
+
+[lsp]
+enabled = true   # language server tools; servers launch lazily when used
+# [lsp.servers.go]
+# command = "gopls"
+# args = []
+# extensions = [".go"]
+
+[skills]
+# paths = ["~/my-skills", "../shared/skills"]   # extra custom skill roots
+# excluded_paths = ["~/.agents/skills"]   # hide convention roots without deleting folders
+# max_depth = 3   # nested scan depth; set 1 for legacy root-only discovery
+# disabled_skills = ["review"]   # hide noisy or unwanted skills
+
+[permissions]
+# Per-call gating. mode = writer fallback when no rule matches: ask|allow|deny.
+# Readers always default to allow. Precedence: deny > ask > allow > fallback.
+# Rules are "Tool" or "Tool(specifier)"; e.g. Bash(go test:*), Edit(src/**).
+mode  = "ask"
+# deny = ["Bash(rm -rf*)", "Bash(git push*)"]   # hard-blocked in every mode
+allow = ["run_skill", "Bash(cd backend-node && node -e \"\nconst fs = require('fs');\nconst path = require('path');\nconst wfDir = path.join(__dirname, 'configs/comfyui_workflows');\nconst files = fs.readdirSync(wfDir);\nfiles.forEach(f => {\n  const p = path.join(wfDir, f);\n  const size = fs.statSync(p).size;\n  try {\n    const wf = JSON.parse(fs.readFileSync(p, 'utf8'));\n    const nodes = Object.keys(wf).length;\n    const hasPlaceholders = JSON.stringify(wf).includes('{{');\n    console.log(f.padEnd(35) + ' | ' + String(nodes).padStart(2) + ' 节点 | ' + String(size).padStart(6) + ' B | ' + (hasPlaceholders ? '有占位符' : '无占位符'));\n  } catch(e) {\n    console.log(f.padEnd(35) + ' | 解析失败: ' + e.message);\n  }\n});\n\" 2>&1)", "Bash(cd backend-node && node -e \"\nconst db = require('./src/db');\nconst configs = db.prepare(\\\"SELECT * FROM ai_service_configs WHERE service_type='video'\\\").all();\nconsole.log('当前视频生成配置数量:', configs.length);\nconfigs.forEach(c => {\n  console.log('  ID:', c.id, '| provider:', c.provider, '| api_protocol:', c.api_protocol, '| base_url:', c.base_url, '| is_default:', c.is_default);\n});\nconst totalDramas = db.prepare('SELECT COUNT(*) as c FROM dramas WHERE deleted_at IS NULL').get().c;\nconsole.log('短剧项目数:', totalDramas);\nconst totalStoryboards = db.prepare('SELECT COUNT(*) as c FROM storyboards').get().c;\nconsole.log('分镜数:', totalStoryboards);\nconst totalVideoGens = db.prepare('SELECT COUNT(*) as c FROM video_generations').get().c;\nconsole.log('视频生成记录数:', totalVideoGens);\n\" 2>&1)", "Bash(cd backend-node && node -e \"\nconst { getDb } = require('./src/db');\nconst config = require('./src/config');\nconst cfg = config.loadConfig();\nconst db = getDb({ ...cfg.database, type: 'sqlite', path: cfg.database.path });\nconst configs = db.prepare(\\\"SELECT * FROM ai_service_configs WHERE service_type='video'\\\").all();\nconsole.log('当前视频生成配置数量:', configs.length);\nconfigs.forEach(c => {\n  console.log('  ID:', c.id, '| provider:', c.provider, '| api_protocol:', c.api_protocol, '| base_url:', c.base_url, '| is_default:', c.is_default);\n});\nconst totalDramas = db.prepare('SELECT COUNT(*) as c FROM dramas WHERE deleted_at IS NULL').get().c;\nconsole.log('短剧项目数:', totalDramas);\n\" 2>&1)", "Bash(which sshpass 2>/dev/null || echo \"no_sshpass\" ; which expect 2>/dev/null || echo \"no_expect\")", "Bash(sshpass -p \"yLbkrnv5GMz5\" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p 24427 root@connect.westc.seetacloud.com \"echo '===== 服务器基本信息 =====' ; nvidia-smi --query-gpu=gpu_name,memory.total,driver_version --format=csv,noheader 2>/dev/null | head -5 ; echo '===== ComfyUI 进程检查 =====' ; ps aux | grep -i comfy | grep -v grep | head -10 ; echo '===== 端口监听检查 =====' ; ss -tlnp 2>/dev/null | grep -E '8188|7860|18188|3000|8080' | head -10 ; echo '===== disk =====' ; df -h / | tail -1 ; echo '===== ComfyUI 目录 =====' ; ls -la /root/ComfyUI/ 2>/dev/null | head -5 ; echo '===== 自定义节点 =====' ; ls /root/ComfyUI/custom_nodes/ 2>/dev/null | head -20\")", "Bash(sshpass -p \"yLbkrnv5GMz5\" ssh -o StrictHostKeyChecking=no -p 24427 root@connect.westc.seetacloud.com \"echo '===== 已安装的模型文件 =====' ; ls /root/ComfyUI/models/checkpoints/ 2>/dev/null | head -20 ; echo '---' ; ls /root/ComfyUI/models/unet/ 2>/dev/null | head -20 ; echo '---' ; ls /root/ComfyUI/models/clip/ 2>/dev/null | head -10 ; echo '---' ; ls /root/ComfyUI/models/vae/ 2>/dev/null | head -10 ; echo '---' ; ls /root/ComfyUI/models/ 2>/dev/null ; echo '===== 类型分布 =====' ; find /root/ComfyUI/models/ -name '*.gguf' -o -name '*.safetensors' -o -name '*.ckpt' 2>/dev/null | head -30\")", "Bash(sshpass -p \"yLbkrnv5GMz5\" ssh -o StrictHostKeyChecking=no -p 24427 root@connect.westc.seetacloud.com \"cd /root/ComfyUI && nohup python main.py --listen 0.0.0.0 --port 8188 > /tmp/comfyui.log 2>&1 & echo 'ComfyUI 启动中...' ; sleep 5 ; ps aux | grep 'python.*main.py' | grep -v grep | head -3\")", "Bash(sleep 15 && sshpass -p \"yLbkrnv5GMz5\" ssh -o StrictHostKeyChecking=no -p 24427 root@connect.westc.seetacloud.com \"echo '===== 端口监听 =====' ; ss -tlnp | grep 818 ; echo '===== 日志最后几行 =====' ; tail -20 /tmp/comfyui.log 2>/dev/null\")", "Bash(sshpass -p \"yLbkrnv5GMz5\" ssh -o StrictHostKeyChecking=no -p 24427 root@connect.westc.seetacloud.com \"echo '===== Python 检查 =====' ; which python3 2>/dev/null ; which python3.10 2>/dev/null ; which python3.11 2>/dev/null ; ls /usr/bin/python* 2>/dev/null ; echo '===== Conda 检查 =====' ; which conda 2>/dev/null ; ls /root/miniconda*/bin/python 2>/dev/null ; ls /opt/conda/bin/python 2>/dev/null ; echo '===== 环境变量 =====' ; echo \\$PATH | tr ':' '\\n' ; echo '===== 常见位置 =====' ; ls /root/anaconda3/bin/python 2>/dev/null ; ls /usr/local/bin/python* 2>/dev/null\")", "Bash(sshpass -p \"yLbkrnv5GMz5\" ssh -o StrictHostKeyChecking=no -p 24427 root@connect.westc.seetacloud.com \"export PATH=\\\"/root/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\\\" && echo '===== Python 版本 =====' && python --version && echo '===== 杀掉旧进程 =====' && fuser -k 8188/tcp 2>/dev/null; fuser -k 8189/tcp 2>/dev/null; sleep 1 && echo '===== 启动 ComfyUI =====' && cd /root/ComfyUI && nohup python main.py --listen 0.0.0.0 --port 8188 > /tmp/comfyui.log 2>&1 & echo 'PID:' \\$! && sleep 8 && tail -5 /tmp/comfyui.log\")", "Bash(sshpass -p \"yLbkrnv5GMz5\" ssh -o StrictHostKeyChecking=no -p 24427 root@connect.westc.seetacloud.com \"export PATH=\\\"/root/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\\\" && ps aux | grep 'python.*main.py' | grep -v grep && echo '===== 端口 =====' && cat /proc/net/tcp | awk '{print \\$2}' | grep -i '1ffc' && echo '===== 日志 =====' && tail -20 /tmp/comfyui.log\")", "Bash(sshpass -p \"yLbkrnv5GMz5\" ssh -o StrictHostKeyChecking=no -p 24427 root@connect.westc.seetacloud.com \"export PATH=\\\"/root/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\\\" && echo '===== 日志 =====' && tail -30 /tmp/comfyui.log && echo '===== 端口检查 =====' && python -c \\\"\nimport socket\ns = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\nresult = s.connect_ex(('0.0.0.0', 8188))\nprint('端口8188:', '已监听' if result == 0 else '未就绪')\ns.close()\ns = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\nresult = s.connect_ex(('0.0.0.0', 8189))\nprint('端口8189:', '已监听' if result == 0 else '未就绪')\ns.close()\n\\\"\")", "Bash(sshpass -p \"yLbkrnv5GMz5\" ssh -o StrictHostKeyChecking=no -p 24427 root@connect.westc.seetacloud.com \"export PATH=\\\"/root/autodl-tmp/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\\\" && echo '===== 检查 ComfyUI 目录 =====' && ls /root/ComfyUI/main.py 2>/dev/null && ls /root/autodl-tmp/ComfyUI/main.py 2>/dev/null && echo '===== 旧进程 =====' && ps aux | grep 8189 | head -3 && echo '===== 新进程 =====' && ps aux | grep '8188' | head -3 && echo '===== 杀掉并重启 =====' && kill -9 2413 2>/dev/null; kill -9 3051 2>/dev/null; kill -9 3054 2>/dev/null; sleep 2 && cd /root/autodl-tmp/ComfyUI && nohup python main.py --listen 0.0.0.0 --port 8188 > /tmp/comfyui2.log 2>&1 & echo 'PID:' \\$! && echo '等待加载...' && sleep 15 && tail -5 /tmp/comfyui2.log\")"]
+# ask = ["Edit(src/**)"]   # force a prompt even if otherwise allowed
+
+[sandbox]
+# Confine tool blast radius. File-writers (write_file/edit_file/multi_edit/move_file)
+# may only write under workspace_root (empty = current dir) and allow_write extras.
+# bash = "enforce" (default) jails each command in an OS sandbox (macOS now;
+# graceful fallback elsewhere); "off" disables it. network allows egress.
+# workspace_root = ""            # default: current working directory
+# allow_write = ["/tmp"]          # extra dirs writers may also modify
+bash    = "enforce"
+network = true
+
+[statusline]
+# A custom status line: a command whose first stdout line replaces the built-in
+# data row. It receives {"model","contextUsed","contextWindow","cwd"} as JSON on stdin.
+# command = "my-statusline.sh"
+
+# External MCP servers. type: "stdio" (default, a subprocess) | "http" | "sse".
+# ${VAR} / ${VAR:-default} are expanded from the environment in command/args/env/url/headers.
+# [[plugins]]
+# name    = "example"
+# command = "reasonix-plugin-example"
+# [[plugins]]                                  # a remote server over Streamable HTTP
+# name    = "stripe"
+# type    = "http"
+# url     = "https://mcp.stripe.com"
+# headers = { Authorization = "Bearer ${STRIPE_KEY}" }

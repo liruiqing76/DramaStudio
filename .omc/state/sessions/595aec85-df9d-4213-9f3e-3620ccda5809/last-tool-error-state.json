@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"D:\\\\zmzc-code\\\\ai-drama-refs\\\\LocalMiniDrama\\\\backend-node\\\\src\\\\services\\\\videoClient.js\"}",
+  "error": "File content (36503 tokens) exceeds maximum allowed tokens (25000). Use offset and limit parameters to read specific portions of the file, or search for specific content instead of reading the whole file.",
+  "timestamp": "2026-06-18T16:23:57.194Z",
+  "retry_count": 1
+}

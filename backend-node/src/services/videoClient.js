@@ -51,6 +51,131 @@ function resolveVideoProtocol(config, modelHint) {
   return protocol;
 }
 
+/**
+ * 解析图片引用为 Buffer（支持 http(s) URL、本地文件路径、相对于 storage 的路径、base64 data URL）。
+ * 返回 { buffer, mime, filename } 或 null。
+ */
+function resolveImageToBuffer(value, filesBaseUrl, storageLocalPath) {
+  if (!value || !String(value).trim()) return null;
+  const s = String(value).trim();
+  const baseUrl = (filesBaseUrl || '').replace(/\/$/, '');
+
+  // data URL
+  const dataMatch = s.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (dataMatch) {
+    const mime = dataMatch[1];
+    const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : (mime.split('/')[1] || 'png');
+    try {
+      return { buffer: Buffer.from(dataMatch[2], 'base64'), mime, filename: `img_${Date.now()}.${ext}` };
+    } catch (_) { return null; }
+  }
+
+  let relPath = null;
+  if (s.startsWith('http://') || s.startsWith('https://')) {
+    const isLocalhost = /localhost|127\.0\.0\.1/i.test(s) || (baseUrl && /localhost|127\.0\.0\.1/i.test(baseUrl));
+    if (!isLocalhost || !storageLocalPath) return { url: s }; // 远程 URL，由调用方下载
+    // 从 URL 中提取 /static/ 之后的相对路径
+    const afterStatic = s.split('/static/')[1]
+      || (baseUrl ? s.replace(baseUrl + '/', '').replace(baseUrl, '') : null)
+      || s.replace(/^https?:\/\/[^/]+\//, '');
+    if (afterStatic) relPath = afterStatic.replace(/^\//, '');
+    else return { url: s };
+  } else if (storageLocalPath) {
+    relPath = s.replace(/^\//, '');
+  }
+
+  if (!relPath) return null;
+  const filePath = path.join(storageLocalPath, relPath);
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const buf = fs.readFileSync(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.bmp': 'image/bmp' }[ext] || 'image/png';
+    const filename = path.basename(filePath) || `img_${Date.now()}${ext}`;
+    return { buffer: buf, mime, filename };
+  } catch (_) { return null; }
+}
+
+/**
+ * 下载远程图片为 Buffer。
+ */
+async function downloadImageBuffer(url, log) {
+  const res = await fetch(url, { timeout: 30000 });
+  if (!res.ok) throw new Error(`下载图片失败: ${res.status} ${url}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const ct = res.headers.get('content-type') || 'image/png';
+  const mime = ct.split(';')[0].trim();
+  const ext = mime === 'image/jpeg' ? 'jpg' : (mime.split('/')[1] || 'png');
+  return { buffer: buf, mime, filename: `img_${Date.now()}.${ext}` };
+}
+
+/**
+ * 上传图片到 ComfyUI 的 /upload/image 接口，返回 { name, subfolder }。
+ * ComfyUI 的 LoadImage 节点只接受 input/ 目录下的文件名，不支持 URL。
+ */
+async function uploadImageToComfyui(baseUrl, imageData, log, videoGenId) {
+  const uploadUrl = baseUrl.replace(/\/$/, '') + '/upload/image';
+  const boundary = '----ComfyUIUpload' + Math.random().toString(16).slice(2);
+  let body;
+  try {
+    body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="${imageData.filename}"\r\nContent-Type: ${imageData.mime}\r\n\r\n`),
+      imageData.buffer,
+      Buffer.from(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="overwrite"\r\n\r\n1\r\n--${boundary}\r\nContent-Disposition: form-data; name="type"\r\n\r\ninput\r\n--${boundary}--\r\n`),
+    ]);
+  } catch (e) {
+    throw new Error('构造上传请求失败: ' + e.message);
+  }
+
+  const res = await fetchWithRetry(uploadUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+    body,
+  }, 2, 1000);
+  if (!res.ok) {
+    const raw = await res.text().catch(() => '');
+    throw new Error(`ComfyUI上传图片失败: ${res.status} ${raw.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  if (!data.name) {
+    throw new Error('ComfyUI上传图片未返回name: ' + JSON.stringify(data).slice(0, 300));
+  }
+  log.info('[ComfyUI] 图片已上传到远程服务器', { name: data.name, subfolder: data.subfolder || '', video_gen_id: videoGenId });
+  return { name: data.name, subfolder: data.subfolder || '' };
+}
+
+/**
+ * 解析图片引用并上传到 ComfyUI，返回可用于 LoadImage 节点的文件名。
+ * 失败时返回 null（调用方应中止 i2v 流程）。
+ */
+async function resolveAndUploadImageForComfyui(baseUrl, imageUrl, filesBaseUrl, storageLocalPath, log, videoGenId) {
+  if (!imageUrl || !String(imageUrl).trim()) return null;
+  let imageData = resolveImageToBuffer(imageUrl, filesBaseUrl, storageLocalPath);
+  // 远程 URL：需要先下载
+  if (!imageData && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+    try {
+      imageData = await downloadImageBuffer(imageUrl, log);
+    } catch (e) {
+      log.error('[ComfyUI] 下载图片失败', { url: imageUrl, error: e.message, video_gen_id: videoGenId });
+      throw e;
+    }
+  } else if (imageData && imageData.url) {
+    // resolveImageToBuffer 返回的是远程 URL
+    try {
+      imageData = await downloadImageBuffer(imageData.url, log);
+    } catch (e) {
+      log.error('[ComfyUI] 下载远程图片失败', { url: imageData.url, error: e.message, video_gen_id: videoGenId });
+      throw e;
+    }
+  }
+  if (!imageData || !imageData.buffer) {
+    throw new Error(`无法解析图片: ${imageUrl}`);
+  }
+  const uploaded = await uploadImageToComfyui(baseUrl, imageData, log, videoGenId);
+  // LoadImage 节点的 image 字段：subfolder/name 格式
+  return uploaded.subfolder ? `${uploaded.subfolder}/${uploaded.name}` : uploaded.name;
+}
+
 /** 可灵 Omni / 多图生视频（飞儿 ffir.cn 等中转）：可用环境变量临时覆盖配置 */
 function applyKlingOmniEnvOverrides(config) {
   const c = { ...config };
@@ -2401,14 +2526,35 @@ async function callComfyUiVideoApi(config, log, opts) {
     }
   }
 
+<<<<<<< HEAD
   if (!workflow) {
     // 构建默认LTX Video workflow（兜底）
     workflow = buildDefaultWan21Workflow(opts, settings, log);
     log.info('[ComfyUI] 使用内置兜底 Wan2.1 T2V workflow', { video_gen_id });
+=======
+  // i2v 模式：ComfyUI 的 LoadImage 节点只接受 input/ 目录下的文件名，不支持 URL。
+  // 需要先把图片上传到远程 ComfyUI 服务器，再用返回的文件名替换 image_url。
+  // 这对 AutoDL 等远程租卡场景至关重要——远程服务器无法访问本地 localhost URL。
+  const filesBaseUrl = opts.files_base_url;
+  const storageLocalPath = opts.storage_local_path;
+  const i2vSourceUrl = (image_url || first_frame_url || '').toString().trim();
+  if (i2vSourceUrl) {
+    try {
+      const uploadedName = await resolveAndUploadImageForComfyui(
+        base, i2vSourceUrl, filesBaseUrl, storageLocalPath, log, video_gen_id
+      );
+      // 用上传后的文件名覆盖 opts，使后续占位符替换使用文件名而非 URL
+      opts = { ...opts, image_url: uploadedName, first_frame_url: uploadedName };
+      log.info('[ComfyUI] i2v 图片已上传，使用文件名作为 LoadImage 输入', { uploaded_name: uploadedName, video_gen_id });
+    } catch (e) {
+      log.error('[ComfyUI] i2v 图片上传失败', { error: e.message, image_url: i2vSourceUrl, video_gen_id });
+      return { error: 'ComfyUI图片上传失败: ' + e.message };
+    }
+>>>>>>> 76bb4f9 (chore: 全量提交当前项目所有文件(含调试脚本、测试脚本、文档、workflow配置))
   }
 
   // 替换workflow中的占位符
-  workflow = substituteWorkflowPlaceholders(workflow, opts, log);
+  workflow = substituteWorkflowPlaceholders(workflow, opts, settings, log);
 
   // 详细日志：打印完整workflow以便调试
   log.info('[ComfyUI] 提交workflow', { 
@@ -2648,25 +2794,51 @@ function adaptPromptForWan21(rawPrompt, log, video_gen_id) {
  * 支持 {{prompt}}, {{negative_prompt}}, {{image_url}}, {{seed}}, {{width}}, {{height}}, 
  *   {{frames}}, {{fps}}, {{steps}}, {{cfg}}, {{sampler_name}}, {{filename_prefix}} 等
  */
-function substituteWorkflowPlaceholders(workflow, opts, log) {
+function substituteWorkflowPlaceholders(workflow, opts, settings, log) {
+  settings = settings || {};
   const { prompt, negative_prompt, image_url, seed, duration, aspect_ratio, resolution } = opts;
   const actualSeed = (seed !== undefined && seed !== null && String(seed) !== 'null' && String(seed) !== 'undefined') 
     ? Number(seed) 
     : Math.floor(Math.random() * 1000000000000);
 
-  // 解析分辨率 - 默认1920x1080
-  let width = 1920, height = 1080;
-  if (aspect_ratio) {
-    const [w, h] = aspect_ratio.split(':').map(Number);
-    if (w && h) {
-      if (w / h > 1) { width = 1280; height = Math.round(1280 * h / w); }
-      else { height = 1280; width = Math.round(1280 * w / h); }
+  // 解析分辨率 - 支持 '480p'/'720p'/'1080p' 字符串 + '832x480' 等数值格式
+  const resolutionLabelMap = {
+    '480p': { short: 480, long: 854 },
+    '540p': { short: 540, long: 960 },
+    '720p': { short: 720, long: 1280 },
+    '1080p': { short: 1080, long: 1920 },
+  };
+  const rLabel = String(resolution || '').toLowerCase().trim();
+  const rMapped = resolutionLabelMap[rLabel] || null;
+
+  // 默认720p（短剧画质底线）
+  let width = 1280, height = 720;
+  if (rMapped) {
+    // resolution标签优先：按 aspect_ratio 决定横竖
+    if (aspect_ratio) {
+      const [aw, ah] = String(aspect_ratio).split(':').map(Number);
+      if (aw && ah) {
+        const shortEdge = rMapped.short;
+        if (aw >= ah) { height = shortEdge; width = Math.round(shortEdge * aw / ah / 16) * 16; }
+        else          { width = shortEdge;  height = Math.round(shortEdge * ah / aw / 16) * 16; }
+      } else { width = rMapped.long; height = rMapped.short; }
+    } else { width = rMapped.long; height = rMapped.short; }
+  } else if (aspect_ratio) {
+    // aspect_ratio决定方向，默认720p短边
+    const [aw, ah] = String(aspect_ratio).split(':').map(Number);
+    if (aw && ah) {
+      const baseShort = 720;
+      if (aw >= ah) { height = baseShort; width = Math.round(baseShort * aw / ah / 16) * 16; }
+      else          { width = baseShort;  height = Math.round(baseShort * ah / aw / 16) * 16; }
     }
   }
-  // resolution优先（如 '1920x1080'）
+  // '832x480' 等精确数值格式覆盖
   if (resolution) {
     const [rw, rh] = String(resolution).split('x').map(Number);
-    if (rw && rh) { width = rw; height = rh; }
+    if (Number.isFinite(rw) && Number.isFinite(rh) && rw > 0 && rh > 0) {
+      width = Math.round(rw / 16) * 16;
+      height = Math.round(rh / 16) * 16;
+    }
   }
 
   // 计算帧数: fps * duration，LTX Video推荐8fps或25fps
@@ -2697,6 +2869,7 @@ function substituteWorkflowPlaceholders(workflow, opts, log) {
     '{{cfg}}': '3.0',
     '{{sampler_name}}': 'euler',
     '{{filename_prefix}}': 'drama',
+    '{{denoise}}': String(opts.denoise || 0.7),
   };
 
   // 深拷贝workflow并替换占位符
@@ -2704,9 +2877,11 @@ function substituteWorkflowPlaceholders(workflow, opts, log) {
 
   // 需要转回数字的字段列表
   const numericFields = new Set([
-    'seed', 'noise_seed', 'width', 'height', 'length', 'batch_size',
+    'seed', 'noise_seed', 'width', 'height', 'length', 'num_frames', 'batch_size',
     'steps', 'frame_rate', 'fps', 'frame_idx', 'strength',
     'max_shift', 'base_shift', 'stretch', 'terminal', 'denoise',
+    'shift', 'riflex_freq_index', 'denoise_strength',
+    'tile_x', 'tile_y', 'tile_stride_x', 'tile_stride_y',
   ]);
 
   for (const [nodeId, node] of Object.entries(substituted)) {

@@ -1,0 +1,550 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1782404855366,
+  "projectRoot": "d:\\zmzc-code\\ai-drama-refs\\LocalMiniDrama",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "scripts"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    " C": {
+      "path": " C",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1782404855328,
+      "keyFiles": []
+    },
+    "backend-node": {
+      "path": "backend-node",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1782404855329,
+      "keyFiles": [
+        "add_comfyui_config.py",
+        "comfyui_config_update.sql",
+        "package-lock.json",
+        "package.json",
+        "README.md"
+      ]
+    },
+    "configs": {
+      "path": "configs",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1782404855330,
+      "keyFiles": [
+        "wan21_14b_i2v_official.json"
+      ]
+    },
+    "desktop": {
+      "path": "desktop",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1782404855331,
+      "keyFiles": [
+        "dist-cn.bat",
+        "dist-mac.sh",
+        "electron-builder-lite.json",
+        "electron-builder-mac-lite.json",
+        "electron-builder-mac.json"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 11,
+      "lastAccessed": 1782404855332,
+      "keyFiles": [
+        "changelog.md",
+        "comfyui原理.txt",
+        "comfyui资料1.md",
+        "comfyui配置.md",
+        "configuration.md"
+      ]
+    },
+    "example_drama": {
+      "path": "example_drama",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1782404855332,
+      "keyFiles": [
+        "衣服设计天才302.zip"
+      ]
+    },
+    "frontweb": {
+      "path": "frontweb",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1782404855333,
+      "keyFiles": [
+        "index.html",
+        "package-lock.json",
+        "package.json",
+        "README.md",
+        "vite.config.js"
+      ]
+    },
+    "openclaw-skill": {
+      "path": "openclaw-skill",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1782404855334,
+      "keyFiles": [
+        "README.md",
+        "skill.json",
+        "SKILL.md",
+        "tools.json"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 140,
+      "lastAccessed": 1782404855335,
+      "keyFiles": [
+        "api_test_image.js",
+        "api_test_video.js",
+        "autodl.sh",
+        "backend.err.log",
+        "backend.out.log"
+      ]
+    },
+    "test_output": {
+      "path": "test_output",
+      "purpose": null,
+      "fileCount": 18,
+      "lastAccessed": 1782404855335,
+      "keyFiles": [
+        "clip_fix.mp4",
+        "clip_fix_f0.png",
+        "clip_fix_f40.png",
+        "concat_list.txt",
+        "drama_full_25fps.mp4"
+      ]
+    },
+    "各大平台中转站配置": {
+      "path": "各大平台中转站配置",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1782404855336,
+      "keyFiles": [
+        "302ai-302.json",
+        "comfyui配置.md",
+        "geeknow.json",
+        "n1n.json",
+        "stablediffusion webui接口.png"
+      ]
+    },
+    "项目截图": {
+      "path": "项目截图",
+      "purpose": null,
+      "fileCount": 18,
+      "lastAccessed": 1782404855337,
+      "keyFiles": [
+        "1.mp4",
+        "1.png",
+        "2.mp4",
+        "2.png",
+        "3.mp4"
+      ]
+    },
+    "backend-node\\build": {
+      "path": "backend-node\\build",
+      "purpose": "Build output",
+      "fileCount": 0,
+      "lastAccessed": 1782404855338,
+      "keyFiles": []
+    },
+    "backend-node\\data": {
+      "path": "backend-node\\data",
+      "purpose": "Data files",
+      "fileCount": 3,
+      "lastAccessed": 1782404855339,
+      "keyFiles": [
+        "drama_generator.db",
+        "drama_generator.db-shm",
+        "drama_generator.db-wal"
+      ]
+    },
+    "backend-node\\migrations": {
+      "path": "backend-node\\migrations",
+      "purpose": "Database migrations",
+      "fileCount": 22,
+      "lastAccessed": 1782404855340,
+      "keyFiles": [
+        "01_init.sql",
+        "02_add_default_model.sql",
+        "03_add_props_episode_id.sql"
+      ]
+    },
+    "backend-node\\node_modules": {
+      "path": "backend-node\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1782404855341,
+      "keyFiles": []
+    },
+    "desktop\\dist": {
+      "path": "desktop\\dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 2,
+      "lastAccessed": 1782404855343,
+      "keyFiles": [
+        "builder-debug.yml",
+        "builder-effective-config.yaml"
+      ]
+    },
+    "frontweb\\dist": {
+      "path": "frontweb\\dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 2,
+      "lastAccessed": 1782404855345,
+      "keyFiles": [
+        "index.html",
+        "wx.jpg"
+      ]
+    },
+    "frontweb\\node_modules": {
+      "path": "frontweb\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1782404855346,
+      "keyFiles": []
+    },
+    "frontweb\\public": {
+      "path": "frontweb\\public",
+      "purpose": "Public files",
+      "fileCount": 1,
+      "lastAccessed": 1782404855346,
+      "keyFiles": [
+        "wx.jpg"
+      ]
+    },
+    "frontweb\\src": {
+      "path": "frontweb\\src",
+      "purpose": "Source code",
+      "fileCount": 2,
+      "lastAccessed": 1782404855347,
+      "keyFiles": [
+        "App.vue",
+        "main.js"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "backend-node\\src\\services\\videoClient.js",
+      "accessCount": 34,
+      "lastAccessed": 1781846304821,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 12,
+      "lastAccessed": 1781839075684,
+      "type": "directory"
+    },
+    {
+      "path": "backend-node\\configs\\comfyui_workflows\\flux2_gguf_t2i.json",
+      "accessCount": 7,
+      "lastAccessed": 1781805629433,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\services\\imageClient.js",
+      "accessCount": 5,
+      "lastAccessed": 1781839099979,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\services\\videoService.js",
+      "accessCount": 5,
+      "lastAccessed": 1781839125911,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\configs\\comfyui_workflows\\wan22_5b_ovi_i2v.json",
+      "accessCount": 5,
+      "lastAccessed": 1781846292258,
+      "type": "file"
+    },
+    {
+      "path": "backend-node",
+      "accessCount": 4,
+      "lastAccessed": 1781803651339,
+      "type": "directory"
+    },
+    {
+      "path": "backend-node\\configs\\comfyui_workflows\\flux2_gguf_i2i.json",
+      "accessCount": 4,
+      "lastAccessed": 1781805097732,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\services\\imageService.js",
+      "accessCount": 4,
+      "lastAccessed": 1781839155535,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\configs\\comfyui_workflows\\wan22_gguf_t2v.json",
+      "accessCount": 3,
+      "lastAccessed": 1781808854208,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\configs\\comfyui_workflows\\wan22_gguf_i2v.json",
+      "accessCount": 3,
+      "lastAccessed": 1781808854276,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\configs\\flux2_image_config.sql",
+      "accessCount": 3,
+      "lastAccessed": 1781832940942,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\routes\\index.js",
+      "accessCount": 3,
+      "lastAccessed": 1781839084467,
+      "type": "file"
+    },
+    {
+      "path": "scripts\\test_img_body.json",
+      "accessCount": 2,
+      "lastAccessed": 1781804018312,
+      "type": "file"
+    },
+    {
+      "path": "scripts\\api_test_video.js",
+      "accessCount": 2,
+      "lastAccessed": 1781804421827,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\routes\\images.js",
+      "accessCount": 2,
+      "lastAccessed": 1781804459909,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\config\\index.js",
+      "accessCount": 2,
+      "lastAccessed": 1781839084066,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\app.js",
+      "accessCount": 2,
+      "lastAccessed": 1781839084200,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\server.js",
+      "accessCount": 2,
+      "lastAccessed": 1781839084410,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\db\\migrate.js",
+      "accessCount": 2,
+      "lastAccessed": 1781839100384,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\package.json",
+      "accessCount": 2,
+      "lastAccessed": 1781839109385,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\configs\\config.yaml",
+      "accessCount": 2,
+      "lastAccessed": 1781839109715,
+      "type": "file"
+    },
+    {
+      "path": "AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1781799822817,
+      "type": "file"
+    },
+    {
+      "path": "frontweb",
+      "accessCount": 1,
+      "lastAccessed": 1781799837580,
+      "type": "directory"
+    },
+    {
+      "path": "backend-node\\src",
+      "accessCount": 1,
+      "lastAccessed": 1781803599920,
+      "type": "directory"
+    },
+    {
+      "path": "backend-node\\configs\\comfyui_workflows\\ltx_video_t2v.json",
+      "accessCount": 1,
+      "lastAccessed": 1781803608628,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\services\\mediaAspectRatioSpec.js",
+      "accessCount": 1,
+      "lastAccessed": 1781803616276,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\setup-ai-config.js",
+      "accessCount": 1,
+      "lastAccessed": 1781803651224,
+      "type": "file"
+    },
+    {
+      "path": "视频生成模型对比.md",
+      "accessCount": 1,
+      "lastAccessed": 1781804008860,
+      "type": "file"
+    },
+    {
+      "path": "scripts\\api_test_image.js",
+      "accessCount": 1,
+      "lastAccessed": 1781804847693,
+      "type": "file"
+    },
+    {
+      "path": "ssh_config.txt",
+      "accessCount": 1,
+      "lastAccessed": 1781805440389,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\leslie\\.claude\\projects\\D--zmzc-code-ai-drama-refs-LocalMiniDrama\\505b19e0-6dd1-4c74-9a29-fb0589000f1e\\tool-results\\bfwft853v.txt",
+      "accessCount": 1,
+      "lastAccessed": 1781806361101,
+      "type": "file"
+    },
+    {
+      "path": "scripts\\tunnel.bat",
+      "accessCount": 1,
+      "lastAccessed": 1781807911173,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\db\\index.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839084529,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\services\\aiConfigService.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839100336,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\configs",
+      "accessCount": 1,
+      "lastAccessed": 1781839100403,
+      "type": "directory"
+    },
+    {
+      "path": "backend-node\\migrations",
+      "accessCount": 1,
+      "lastAccessed": 1781839100445,
+      "type": "directory"
+    },
+    {
+      "path": "backend-node\\src\\services\\aiClient.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839109589,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\migrations\\01_init.sql",
+      "accessCount": 1,
+      "lastAccessed": 1781839109652,
+      "type": "file"
+    },
+    {
+      "path": "backend-node\\src\\config\\videoGeneration.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839134597,
+      "type": "file"
+    },
+    {
+      "path": "frontweb\\src",
+      "accessCount": 1,
+      "lastAccessed": 1781839134979,
+      "type": "directory"
+    },
+    {
+      "path": "frontweb\\src\\api\\videos.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839147332,
+      "type": "file"
+    },
+    {
+      "path": "frontweb\\src\\api\\storyboards.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839147391,
+      "type": "file"
+    },
+    {
+      "path": "frontweb\\src\\api\\images.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839147486,
+      "type": "file"
+    },
+    {
+      "path": "frontweb\\src\\api\\ai.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839147668,
+      "type": "file"
+    },
+    {
+      "path": "frontweb\\src\\api\\generation.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839155481,
+      "type": "file"
+    },
+    {
+      "path": "frontweb\\src\\api\\drama.js",
+      "accessCount": 1,
+      "lastAccessed": 1781839155662,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\leslie\\AppData\\Local\\Temp\\claude\\D--zmzc-code-ai-drama-refs-LocalMiniDrama\\7ac53b39-1203-404c-b790-fee1814c2599\\tasks\\bjhcdg2nq.output",
+      "accessCount": 1,
+      "lastAccessed": 1781845955945,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

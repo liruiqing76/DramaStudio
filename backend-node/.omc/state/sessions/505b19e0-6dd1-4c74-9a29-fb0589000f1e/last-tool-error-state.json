@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p 23156 root@connect.westb.seetacloud.com \\\"python3 -c \\\\\\\"\\nimport json\\nwith open('/root/ComfyUI/custom_nodes/ComfyUI-WanVideoWrappe...",
+  "error": "Exit code 127\nbash: line 1: python3: command not found",
+  "timestamp": "2026-06-19T05:05:42.731Z",
+  "retry_count": 1
+}
