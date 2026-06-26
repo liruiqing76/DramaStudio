@@ -4,11 +4,12 @@ backend-node/scripts
 backend-node/configs/ai-configs-stary.json
 backend-node/configs/ai-configs-qudao.json
 backend-node/configs/ai-configs-2026-03-12 (5).json
-data/drama_generator.db
-data/drama_generator.db-shm
-data/drama_generator.db-wal
+backend-node/data/drama_generator.db
+backend-node/data/drama_generator.db-shm
+backend-node/data/drama_generator.db-wal
 .opencode
 .cursor
+.codegraph
 desktop/dist/win-unpacked
 server
 desktop/backend-app-secure/configs/ai-configs-qudao.json
@@ -20,6 +21,28 @@ desktop/backend-app-secure
 desktop/release-icon-test
 desktop/release-icon-test-7
 desktop/backend-app-secure
+
+# 测试输出和归档文件
+archive/
+output/
+test_output/
+tests/
+test_cases/
+pid_*.txt
+prompt_id*.txt
+final_pid.txt
+last_pid.txt
+*.mp4
+*.log
+test_*.png
+test_*.jpg
+
+# IDE缓存
+.evolution/
+.omc/
+.omo/
+.open-mem/
+.reasonix/
 
 # open-mem: Auto-generated folder context files.
 # Uncomment to exclude from version control (recommended for large projects):

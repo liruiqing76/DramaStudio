@@ -1,6 +1,0 @@
-file 'sb1_720p.mp4'
-file 'sb2_720p.mp4'
-file 'sb3_720p.mp4'
-file 'sb4_720p.mp4'
-file 'sb5_720p.mp4'
-file 'sb6_720p.mp4'
