@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, Tray, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -175,6 +175,9 @@ function findFreePort(preferredPort) {
   });
 }
 
+let mainWindow = null
+let tray = null
+
 function createWindow(port) {
   Menu.setApplicationMenu(null);
   const win = new BrowserWindow({
@@ -183,6 +186,7 @@ function createWindow(port) {
     webPreferences: { nodeIntegration: false, contextIsolation: true },
     show: false,
   });
+  mainWindow = win;
   win.once('ready-to-show', () => {
     win.show();
     writeMainLog('window ready-to-show');
@@ -199,10 +203,58 @@ function createWindow(port) {
   });
   writeMainLog(`createWindow loadURL http://127.0.0.1:${port}`);
   win.loadURL(`http://127.0.0.1:${port}`);
-  win.on('closed', () => app.quit());
+
+  // ── 关闭时最小化到系统托盘，而非真正退出 ───────────────────────────
+  // 点击窗口右上角 X：隐藏窗口到托盘（后台继续运行，后端保持服务）
+  win.on('close', (e) => {
+    if (!app.isQuitting) {
+      e.preventDefault();
+      win.hide();
+      if (tray) {
+        tray.displayBalloon({
+          title: '本地短剧助手',
+          content: '已最小化到系统托盘，双击托盘图标可恢复窗口。',
+        });
+      }
+    }
+  });
+  win.on('closed', () => {
+    mainWindow = null;
+  });
+
   if (process.env.LOCALMINIDRAMA_DEVTOOLS === '1') {
     win.webContents.openDevTools();
   }
+}
+
+/** 创建系统托盘图标（右下角） */
+function createTray() {
+  // 从当前可执行文件读取图标，避免依赖额外图标资源文件
+  let icon;
+  try {
+    icon = nativeImage.createFromPath(process.execPath);
+    if (icon.isEmpty()) throw new Error('empty icon');
+  } catch (_) {
+    // 兜底：生成 1x1 透明像素 PNG
+    const b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    icon = nativeImage.createFromBuffer(Buffer.from(b64, 'base64'));
+  }
+  tray = new Tray(icon);
+  tray.setToolTip('本地短剧助手');
+  const contextMenu = Menu.buildFromTemplate([
+    { label: '显示主界面', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
+    { type: 'separator' },
+    { label: '退出', click: () => { app.isQuitting = true; app.quit(); } },
+  ]);
+  tray.setContextMenu(contextMenu);
+  // 双击托盘图标恢复窗口
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+  writeMainLog('Tray created');
 }
 
 /** 后端始终在主进程内运行（打包用子进程会重复启动 exe 导致大量进程，故取消） */
@@ -261,11 +313,19 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
+  // 创建系统托盘图标（关闭窗口后仍驻留后台）
+  createTray();
   // startBackend 的 Promise 在 listen 回调中 resolve，服务器此时已就绪，直接建窗口
   createWindow(port);
 });
 
+// 托盘模式下，关闭所有窗口不退出应用（除非显式从托盘菜单退出）
+app.on('window-all-closed', () => {
+  // 不调用 app.quit()，让应用驻留系统托盘
+});
+
 app.on('before-quit', () => {
+  app.isQuitting = true
   if (serverInstance) {
     serverInstance.close();
     serverInstance = null;

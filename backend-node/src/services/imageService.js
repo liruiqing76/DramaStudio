@@ -1479,6 +1479,87 @@ async function processImageGeneration(db, log, imageGenId) {
     }
     log.info('[图生] ✓ 完成', { id: imageGenId, local_path: localPath, total_elapsed: elapsed() });
 
+    // ── Step 6.5: VLM 质检（异步非阻塞，失败降级）─────────────────
+    // 移植自 VideoClaw 的 VLM 闭环质检机制：
+    // 1. 用 VLM 评估刚生成的分镜图是否合格（hard_failures + soft_issues 双层评分）
+    // 2. 不合格且有 suggested_prompt 时，用优化 prompt 重生成，再评估
+    // 3. 所有版本+评分记录到 image_generations.vlm_versions
+    // 安全护栏：enabled 默认 false，maxIterations=2 硬上限，跳过四宫格/九宫格
+    try {
+      const vlmQualityService = require('./vlmQualityService');
+      const vlmCfg = vlmQualityService.getVlmConfig(cfg);
+      if (vlmCfg.enabled && row.storyboard_id && localPath) {
+        const storagePath = path.isAbsolute(cfg.storage?.local_path)
+          ? cfg.storage.local_path
+          : path.join(process.cwd(), cfg.storage?.local_path || './data/storage');
+        const absImgPath = path.join(storagePath, localPath);
+
+        // 构建 regenerateFn 回调：用优化 prompt 重新调图生 API
+        const regenerateFn = async (suggestedPrompt) => {
+          const imageClient = require('./imageClient');
+          const uploadService = require('./uploadService');
+          const storageLayout = require('./storageLayout');
+
+          const regenResult = await imageClient.callImageApi(db, log, {
+            prompt: suggestedPrompt,
+            model: row.model,
+            size: row.size,
+            quality: row.quality,
+            drama_id: row.drama_id,
+            character_id: row.character_id,
+            image_gen_id: imageGenId,
+            imageServiceType: 'storyboard_image',
+            reference_image_urls: reference_image_urls || undefined,
+            files_base_url: filesBaseUrl,
+            storage_local_path: storageLocalPath,
+            negative_prompt: row.negative_prompt || undefined,
+            frame_identity_lock: isFrameIdentityLock,
+          });
+
+          if (regenResult.error) {
+            log.warn('[VLM质检] 重生成 API 返回错误', { id: imageGenId, error: regenResult.error });
+            return null;
+          }
+
+          // 下载新图到本地
+          const projectSubdir = storageLayout.getProjectStorageSubdir(db, row.drama_id);
+          const newLocalPath = await uploadService.downloadImageToLocal(
+            storagePath, regenResult.image_url, 'scenes', log, 'ig', projectSubdir
+          );
+
+          if (newLocalPath) {
+            const newAbs = path.join(storagePath, newLocalPath);
+            // 更新 image_generations 记录为新图
+            const nowIso = new Date().toISOString();
+            db.prepare('UPDATE image_generations SET image_url = ?, local_path = ?, prompt = ?, updated_at = ? WHERE id = ?')
+              .run('/static/' + String(newLocalPath).replace(/^\//, ''), newLocalPath, suggestedPrompt, nowIso, imageGenId);
+            return { localPath: newLocalPath, absPath: newAbs };
+          }
+          return null;
+        };
+
+        // 异步执行质检，不阻塞主流程
+                const _vlmCfg = vlmQualityService.getVlmConfig(cfg);
+                vlmQualityService.regenerateUntilAcceptable(db, log, imageGenId, {
+                  cfg, model: _vlmCfg.model, regenerateFn,
+                }).then((vlmResult) => {
+          if (vlmResult.evaluated) {
+            log.info('[VLM质检] 质检完成', {
+              id: imageGenId,
+              accepted: vlmResult.accepted,
+              iterations: vlmResult.iterations,
+              final_score: vlmResult.final_score,
+              regenerated: vlmResult.regenerated,
+            });
+          }
+        }).catch((e) => {
+          log.warn('[VLM质检] 异步质检异常（降级放行）', { id: imageGenId, error: e.message });
+        });
+      }
+    } catch (vlmErr) {
+      log.warn('[VLM质检] 钩入异常（降级放行）', { id: imageGenId, error: vlmErr.message });
+    }
+
     // ── 首尾帧绑定决策 ─────────────────────────────────────────────
     // 优先信任 image_generations 行自身保存的 frame_type（前端点击“尾帧生成”会正确传 'storyboard_last'）。
     // 仅当该记录的 frame_type 为空或非首/尾帧特型时，才回退到“最近一次 frame_prompts”作为推断（兼容旧数据/历史创建路径）。
@@ -1674,6 +1755,23 @@ function syncStoryboardCharacters(db, log, storyboardId) {
   return { added };
 }
 
+/**
+ * 构造全身视图 prompt（衣橱系统三视图用）
+ * @param {object} anchors 锚点对象 {hair, face, body, skin, accessory}
+ * @param {string} viewDesc 视角描述（如 "full-body front view, facing camera"）
+ * @returns {string} 完整 prompt
+ */
+function buildFullBodyPrompt(anchors, viewDesc) {
+  if (!anchors) return viewDesc || '';
+  const parts = [viewDesc || 'full-body view'];
+  if (anchors.hair) parts.push(anchors.hair + ' hair');
+  if (anchors.face) parts.push(anchors.face + ' face');
+  if (anchors.body) parts.push(anchors.body + ' body');
+  if (anchors.skin) parts.push(anchors.skin + ' skin');
+  if (anchors.accessory) parts.push('distinctive ' + anchors.accessory);
+  return parts.join(', ');
+}
+
 module.exports = {
   list,
   getById,
@@ -1684,4 +1782,5 @@ module.exports = {
   processImageGeneration,
   aspectRatioToSize,
   syncStoryboardCharacters,
+  buildFullBodyPrompt,
 };

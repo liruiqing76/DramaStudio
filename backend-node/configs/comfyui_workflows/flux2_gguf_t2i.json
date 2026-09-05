@@ -2,7 +2,7 @@
   "1": {
     "class_type": "UnetLoaderGGUF",
     "inputs": {
-      "unet_name": "GGUF/flux2-dev-Q4_K_M.gguf"
+      "unet_name": "GGUF/flux1-dev-Q8_0.gguf"
     }
   },
   "2": {
@@ -28,7 +28,7 @@
     }
   },
   "5": {
-    "class_type": "EmptyFlux2LatentImage",
+    "class_type": "EmptyLatentImage",
     "inputs": {
       "width": "{{width}}",
       "height": "{{height}}",
@@ -39,10 +39,10 @@
     "class_type": "KSampler",
     "inputs": {
       "seed": "{{seed}}",
-      "steps": 20,
-      "cfg": 3.5,
+      "steps": "{{steps}}",
+      "cfg": "{{cfg}}",
       "sampler_name": "euler",
-      "scheduler": "normal",
+      "scheduler": "beta",
       "denoise": 1.0,
       "model": ["1", 0],
       "positive": ["3", 0],
@@ -66,7 +66,7 @@
   "9": {
     "class_type": "SaveImage",
     "inputs": {
-      "filename_prefix": "flux2",
+      "filename_prefix": "flux1",
       "images": ["7", 0]
     }
   }

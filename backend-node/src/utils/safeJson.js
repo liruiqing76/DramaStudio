@@ -89,7 +89,10 @@ function repairByLastBrace(str) {
   const trimmed = str.trimStart();
   if (!trimmed.startsWith('[')) return null;
   const lastBrace = trimmed.lastIndexOf('}');
-  if (lastBrace === -1) return null;
+  if (lastBrace === -1) {
+    // 连一个 } 都没有，无法构造可解析 JSON，放弃
+    return null;
+  }
   // 截断到最后一个 }，去掉紧随其后可能存在的尾随逗号，再补上 ]
   const cut = trimmed.slice(0, lastBrace + 1).trimEnd().replace(/,\s*$/, '');
   return cut + ']';

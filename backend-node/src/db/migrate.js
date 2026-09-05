@@ -332,6 +332,8 @@ function ensureAllColumns(database) {
     { name: 'task_id',          type: 'TEXT' },
     { name: 'completed_at',     type: 'TEXT' },
     { name: 'error_msg',        type: 'TEXT' },
+    { name: 'vlm_versions',     type: 'TEXT' },
+    { name: 'vlm_enabled',      type: 'INTEGER' },
     { name: 'created_at',       type: 'TEXT' },
     { name: 'updated_at',       type: 'TEXT' },
     { name: 'deleted_at',       type: 'TEXT' },
@@ -517,6 +519,177 @@ function ensureAllColumns(database) {
       updated_at TEXT NOT NULL DEFAULT ''
     )`);
   } catch (_) {}
+
+  // --- character_outfits（角色衣橱表） ---
+  try {
+    database.exec(`CREATE TABLE IF NOT EXISTS character_outfits (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      character_id      INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      drama_id          INTEGER REFERENCES dramas(id) ON DELETE CASCADE,
+      name              TEXT NOT NULL,
+      description       TEXT,
+      hair_style        TEXT,
+      face_shape        TEXT,
+      body_type         TEXT,
+      skin_tone         TEXT,
+      signature_accessory TEXT,
+      front_image_path  TEXT,
+      side_image_path   TEXT,
+      back_image_path   TEXT,
+      is_default        INTEGER NOT NULL DEFAULT 0,
+      sort_order        INTEGER NOT NULL DEFAULT 0,
+      created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+  } catch (_) {}
+  ensureColumns(database, 'character_outfits', [
+    { name: 'character_id',        type: 'INTEGER NOT NULL DEFAULT 0' },
+    { name: 'drama_id',            type: 'INTEGER' },
+    { name: 'name',                type: 'TEXT NOT NULL DEFAULT \'\'' },
+    { name: 'description',         type: 'TEXT' },
+    { name: 'hair_style',          type: 'TEXT' },
+    { name: 'face_shape',          type: 'TEXT' },
+    { name: 'body_type',           type: 'TEXT' },
+    { name: 'skin_tone',           type: 'TEXT' },
+    { name: 'signature_accessory', type: 'TEXT' },
+    { name: 'front_image_path',    type: 'TEXT' },
+    { name: 'side_image_path',     type: 'TEXT' },
+    { name: 'back_image_path',     type: 'TEXT' },
+    { name: 'is_default',          type: 'INTEGER DEFAULT 0' },
+    { name: 'sort_order',          type: 'INTEGER DEFAULT 0' },
+    { name: 'created_at',          type: 'TEXT' },
+    { name: 'updated_at',          type: 'TEXT' },
+  ]);
+
+  // characters 表新增字段兜底
+  ensureColumns(database, 'characters', [
+    { name: 'default_outfit_id', type: 'INTEGER' },
+    { name: 'identity_anchor_json', type: 'TEXT' },
+  ]);
+
+  // --- pipelines（AI Agent 工作流） ---
+  try {
+    database.exec(`CREATE TABLE IF NOT EXISTS pipelines (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      drama_id   INTEGER NOT NULL REFERENCES dramas(id) ON DELETE CASCADE,
+      type       TEXT NOT NULL DEFAULT 'full-production',
+      status     TEXT NOT NULL DEFAULT 'pending',
+      progress   REAL NOT NULL DEFAULT 0,
+      config_json TEXT,
+      error_msg  TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+  } catch (_) {}
+  ensureColumns(database, 'pipelines', [
+    { name: 'drama_id',    type: 'INTEGER NOT NULL DEFAULT 0' },
+    { name: 'type',        type: 'TEXT NOT NULL DEFAULT \'full-production\'' },
+    { name: 'status',      type: 'TEXT NOT NULL DEFAULT \'pending\'' },
+    { name: 'progress',    type: 'REAL DEFAULT 0' },
+    { name: 'config_json', type: 'TEXT' },
+    { name: 'error_msg',   type: 'TEXT' },
+    { name: 'created_at',  type: 'TEXT' },
+    { name: 'updated_at',  type: 'TEXT' },
+  ]);
+
+  // --- pipeline_steps ---
+  try {
+    database.exec(`CREATE TABLE IF NOT EXISTS pipeline_steps (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      pipeline_id INTEGER NOT NULL REFERENCES pipelines(id) ON DELETE CASCADE,
+      step_id     TEXT NOT NULL,
+      status      TEXT NOT NULL DEFAULT 'pending',
+      retry_count INTEGER NOT NULL DEFAULT 0,
+      input_json  TEXT,
+      output_json TEXT,
+      error_msg   TEXT,
+      started_at  TEXT,
+      finished_at TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+  } catch (_) {}
+  ensureColumns(database, 'pipeline_steps', [
+    { name: 'pipeline_id', type: 'INTEGER NOT NULL DEFAULT 0' },
+    { name: 'step_id',     type: 'TEXT NOT NULL DEFAULT \'\'' },
+    { name: 'status',      type: 'TEXT NOT NULL DEFAULT \'pending\'' },
+    { name: 'retry_count', type: 'INTEGER DEFAULT 0' },
+    { name: 'input_json',  type: 'TEXT' },
+    { name: 'output_json', type: 'TEXT' },
+    { name: 'error_msg',   type: 'TEXT' },
+    { name: 'started_at',  type: 'TEXT' },
+    { name: 'finished_at', type: 'TEXT' },
+    { name: 'created_at',  type: 'TEXT' },
+  ]);
+
+  // --- character_voices（角色音色表） ---
+  try {
+    database.exec(`CREATE TABLE IF NOT EXISTS character_voices (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      character_id    INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      voice_id        TEXT,
+      provider        TEXT NOT NULL DEFAULT 'minimax',
+      name            TEXT,
+      gender          TEXT,
+      age_group       TEXT,
+      speed           REAL NOT NULL DEFAULT 1.0,
+      pitch           INTEGER NOT NULL DEFAULT 0,
+      emotion         TEXT,
+      sample_audio_path TEXT,
+      created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+  } catch (_) {}
+  ensureColumns(database, 'character_voices', [
+    { name: 'character_id',       type: 'INTEGER NOT NULL DEFAULT 0' },
+    { name: 'voice_id',           type: 'TEXT' },
+    { name: 'provider',           type: 'TEXT NOT NULL DEFAULT \'minimax\'' },
+    { name: 'name',               type: 'TEXT' },
+    { name: 'gender',             type: 'TEXT' },
+    { name: 'age_group',          type: 'TEXT' },
+    { name: 'speed',              type: 'REAL DEFAULT 1.0' },
+    { name: 'pitch',              type: 'INTEGER DEFAULT 0' },
+    { name: 'emotion',            type: 'TEXT' },
+    { name: 'sample_audio_path',  type: 'TEXT' },
+    { name: 'created_at',         type: 'TEXT' },
+    { name: 'updated_at',         type: 'TEXT' },
+  ]);
+
+  // --- video_lipsyncs（唇形同步任务表） ---
+  try {
+    database.exec(`CREATE TABLE IF NOT EXISTS video_lipsyncs (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      video_generation_id INTEGER REFERENCES video_generations(id) ON DELETE CASCADE,
+      drama_id            INTEGER REFERENCES dramas(id),
+      audio_path          TEXT NOT NULL,
+      status              TEXT NOT NULL DEFAULT 'pending',
+      output_video_path   TEXT,
+      error_msg           TEXT,
+      created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at        TEXT
+    )`);
+  } catch (_) {}
+  ensureColumns(database, 'video_lipsyncs', [
+    { name: 'video_generation_id', type: 'INTEGER' },
+    { name: 'drama_id',            type: 'INTEGER' },
+    { name: 'audio_path',          type: 'TEXT NOT NULL DEFAULT \'\'' },
+    { name: 'status',              type: 'TEXT NOT NULL DEFAULT \'pending\'' },
+    { name: 'output_video_path',   type: 'TEXT' },
+    { name: 'error_msg',           type: 'TEXT' },
+    { name: 'created_at',          type: 'TEXT' },
+    { name: 'completed_at',        type: 'TEXT' },
+  ]);
+
+  // video_merges 新增 segments_json 字段（Week 2 时间线）
+  ensureColumns(database, 'video_merges', [
+    { name: 'segments_json', type: 'TEXT' },
+  ]);
+
+  // dramas 表新增模板/评分字段（Week 5）
+  ensureColumns(database, 'dramas', [
+    { name: 'template_id',       type: 'TEXT' },
+    { name: 'rhythm_curve_json', type: 'TEXT' },
+    { name: 'quality_score_json', type: 'TEXT' },
+  ]);
 }
 
 /** 对已打开的 database 执行迁移与兜底补列（供 app 启动时调用） */

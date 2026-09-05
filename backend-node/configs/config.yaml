@@ -11,6 +11,10 @@ server:
   read_timeout: 600
   write_timeout: 600
   insecure_tls: true
+  # 鉴权（默认关闭，部署生产环境时建议开启）
+  auth_enabled: false
+  # 可选：静态 token（如不配置将从 global_settings 表自动生成并持久化）
+  # auth_token: "your-hex-token-here"
 database:
   type: sqlite
   path: ./data/drama_generator.db
@@ -27,6 +31,12 @@ ai:
   default_text_provider: deepseek
   default_image_provider: comfyui
   default_video_provider: comfyui
+  # VLM 质检配置（移植自 VideoClaw 的闭环质检机制）
+  vlm_quality:
+    enabled: false          # 总开关，false=不启用（默认保守）
+    max_iterations: 2       # 最大重生成次数（不含首次），防死循环
+    score_threshold: 7      # 合格分数线（满分10）
+    model: ''               # 视觉评估模型名，留空用默认 vision 配置
 style:
   default_style: ''
   default_role_style: full body and face clearly visible, character centered, consistent facial features, high detail, masterpiece, best quality

@@ -1643,8 +1643,10 @@ function parseModelText(text) {
 function resetForm() {
   editingId.value = null
   presetModelPick.value = ''
+  // 保留当前已选的 service_type（由 Tab 点击决定），避免重置回 text 导致显示不符
+  const currentServiceType = form.value.service_type || 'text'
   form.value = {
-    service_type: 'text',
+    service_type: currentServiceType,
     name: '',
     provider: '',
     api_protocol: '',

@@ -475,11 +475,34 @@ function buildFourViewImagePrompt(fourViewDescription, styleEn, styleZh) {
 
   const fullPrompt = `${styleHeader}${imageLayoutInstruction}\n\n---\n\n${fourViewDescription}${tail}`;
 
-  // 限制提示词长度（通义万象等API对提示词长度有限制）
-  const MAX_PROMPT_LENGTH = 1500;
+  // 提示词长度保护：绝大多数图生 API（OpenAI-compat / 通义万象 / Agnes 等）都有长度上限。
+  // 关键：从开头截断会把「角色描述 + 性别强调」全部丢弃，导致模型把婴儿/母亲/幼犬全都画成默认成年男性。
+  // 因此当超长时，改为「裁剪布局模板」，但始终完整保留 fourViewDescription 与 tail（角色核心 + 性别强调）。
+  const MAX_PROMPT_LENGTH = 2600;
   if (fullPrompt.length > MAX_PROMPT_LENGTH) {
-    console.warn('[四视图] 提示词过长，截断', { length: fullPrompt.length, max: MAX_PROMPT_LENGTH });
-    return fullPrompt.slice(0, MAX_PROMPT_LENGTH) + '... (truncated)';
+    console.warn('[四视图] 提示词过长，裁剪布局模板以保留角色描述', {
+      length: fullPrompt.length, max: MAX_PROMPT_LENGTH,
+    });
+    // 优先保护角色描述与尾部性别强调（这是保证不画错性别的关键），裁剪前面的风格/布局模板
+    const core = `${fourViewDescription}${tail}`;
+    const coreLen = core.length;
+    if (coreLen >= MAX_PROMPT_LENGTH) {
+      // 角色描述本身就超长：直接截断描述（罕见），但尾部性别强调仍保留
+      return `${fourViewDescription.slice(0, MAX_PROMPT_LENGTH - 200)}\n\n---\n\n${tail}`.slice(0, MAX_PROMPT_LENGTH);
+    }
+    // 布局模板需要裁剪：尽量保留布局开头若干行，然后接角色描述
+    const remaining = MAX_PROMPT_LENGTH - coreLen;
+    const sep = '\n\n---\n\n';
+    const layoutBudget = remaining - sep.length;
+    if (layoutBudget <= 0) {
+      return core.slice(0, MAX_PROMPT_LENGTH);
+    }
+    const styleAndLayout = `${styleHeader}${imageLayoutInstruction}`;
+    // 从布局中裁剪，优先保留风格头与布局开头（含分栏说明关键行），丢弃后半部分长尾
+    const trimmedLayout = styleAndLayout.length > layoutBudget
+      ? styleAndLayout.slice(0, layoutBudget) + ' ...(布局模板略)'
+      : styleAndLayout;
+    return `${trimmedLayout}${sep}${core}`.slice(0, MAX_PROMPT_LENGTH);
   }
 
   return fullPrompt;

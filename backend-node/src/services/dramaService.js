@@ -791,19 +791,51 @@ function finalizeEpisode(db, log, episodeId, baseUrl, body = {}) {
     },
   };
   const created = videoMergeService.create(db, log, mergeReq);
-  const mergeId = created.merge_id || created.id;
-  db.prepare('UPDATE episodes SET status = ? WHERE id = ?').run('processing', episodeId);
-  setImmediate(() => {
-    videoMergeService.processVideoMerge(db, log, mergeId, baseUrl);
-  });
-  return {
-    message: '视频合成任务已创建，正在后台处理',
-    merge_id: mergeId,
-    episode_id: episodeId,
-    scenes_count: scenes.length,
-    task_id: created.task_id,
-  };
-}
+    const mergeId = created.merge_id || created.id;
+    db.prepare('UPDATE episodes SET status = ? WHERE id = ?').run('processing', episodeId);
+    setImmediate(() => {
+      videoMergeService.processVideoMerge(db, log, mergeId, baseUrl);
+    });
+
+    // ── 站位连续性检查（异步非阻塞，失败降级）────────────────────
+    // 移植自 VideoClaw 的 staging_continuity 端到端 check：
+    // 在合成成片的同时，后台用 LLM 检查整集分镜的人物站位/朝向/空间关系是否连贯，
+    // 发现不连贯处自动修正 storyboards.action 字段（不阻塞成片流程）
+    // 安全护栏：enabled 默认 false；仅当 config 开启时生效；LLM 失败/超时降级放行
+    try {
+      const vlmQualityService = require('./vlmQualityService');
+      const cfgForVlm = require('../config').loadConfig();
+      const vlmCfg = vlmQualityService.getVlmConfig(cfgForVlm);
+      if (vlmCfg.enabled) {
+        // 延迟执行，避免与视频合成抢占资源；用 setImmediate 排队
+        setImmediate(() => {
+          vlmQualityService.checkEpisodeContinuity(db, log, episodeId, {
+            cfg: cfgForVlm,
+            model: vlmCfg.model,
+          }).then((res) => {
+            log.info('[站位检查] 完成', {
+              episode_id: episodeId,
+              issues: (res.issues || []).length,
+              patches: (res.patches || []).length,
+              applied: res.applied,
+            });
+          }).catch((e) => {
+            log.warn('[站位检查] 异步异常（降级放行）', { episode_id: episodeId, error: e.message });
+          });
+        });
+      }
+    } catch (vlmErr) {
+      log.warn('[站位检查] 钩入异常（降级放行）', { episode_id: episodeId, error: vlmErr.message });
+    }
+
+    return {
+      message: '视频合成任务已创建，正在后台处理',
+      merge_id: mergeId,
+      episode_id: episodeId,
+      scenes_count: scenes.length,
+      task_id: created.task_id,
+    };
+  }
 
 function downloadEpisodeVideo(db, episodeId) {
   const ep = db.prepare('SELECT id, title, episode_number, video_url FROM episodes WHERE id = ? AND deleted_at IS NULL').get(episodeId);

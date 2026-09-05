@@ -21,6 +21,14 @@ const assetRoutes = require('./assets');
 const audioRoutes = require('./audio');
 const promptOverridesRoutes = require('./promptOverrides');
 const sceneModelMapRoutes = require('./sceneModelMap');
+const subtitleRoutes = require('./subtitles');
+const outfitRoutes = require('./outfits');
+const agentRoutes = require('./agent');
+const templateRoutes = require('./templates');
+const { costRoutes: costFn } = require('./cost');
+const systemRoutes = require('./system');
+const voiceRoutes = require('./voice');
+const lipsyncRoutes = require('./lipsync');
 
 function setupRouter(cfg, db, log) {
   const r = express.Router();
@@ -31,6 +39,7 @@ function setupRouter(cfg, db, log) {
   const prop = propRoutes(db, log, cfg);
   const stub = stubRoutes(db, cfg, log);
   const sceneModelMap = sceneModelMapRoutes(db, log);
+  const subtitles = subtitleRoutes(cfg, log);
   
   const uploadService = require('../services/uploadService');
   const charLibrary = characterLibraryRoutes(db, cfg, log);
@@ -47,6 +56,10 @@ function setupRouter(cfg, db, log) {
   const assets = assetRoutes(db, log);
   const audio = audioRoutes(db, log, cfg);
   const promptOverrides = promptOverridesRoutes.routes(db, log);
+const voice = voiceRoutes(db, cfg, log);
+const lipsync = lipsyncRoutes(db, cfg, log);
+const system = systemRoutes(db, cfg, log);
+const templates = templateRoutes.routes(db, cfg, log);
 
   // ---------- dramas ----------
   r.get('/dramas', drama.listDramas);
@@ -77,6 +90,10 @@ function setupRouter(cfg, db, log) {
       response.internalError(res, err.message);
     }
   });
+  // 模板相关路由（放在 :id 路由前，避免被 :id 捕获）
+  r.get('/templates', templates.list);
+  r.post('/dramas/:id/generate-with-template', templates.generateWithTemplate);
+  r.get('/dramas/:id/quality-score', templates.getQualityScore);
   r.get('/dramas/examples', drama.listExamples);
   r.post('/dramas/import-example', drama.importExample);
   r.put('/dramas/:id/outline', drama.saveOutline);
@@ -174,6 +191,20 @@ function setupRouter(cfg, db, log) {
   r.post('/characters/:id/extract-from-image', characters.extractFromImage);
   r.post('/characters/:id/extract-anchors', characters.extractAnchors);
 
+  // ---------- Week 6-7: TTS + 唇形同步 ----------
+  r.post('/characters/:id/voice', voice.createVoice);
+  r.post('/characters/:id/voice/clone', voice.cloneVoice);
+  r.get('/characters/:id/voices', voice.listVoices);
+  r.delete('/voices/:voiceId', voice.deleteVoice);
+  r.post('/voices/:id/preview', voice.previewVoice);
+  r.post('/videos/:id/lipsync', lipsync.createLipsync);
+  r.get('/videos/:id/lipsyncs', lipsync.listLipsyncs);
+  r.get('/lipsyncs/:lid', lipsync.getLipsync);
+
+  // ---------- outfits (角色衣橱系统) ----------
+  const outfits = outfitRoutes(db, cfg, log);
+  r.use(outfits);
+
   // ---------- props ----------
   r.get('/props/:id', prop.getPropById);
   r.post('/props', prop.createProp);
@@ -256,6 +287,10 @@ function setupRouter(cfg, db, log) {
   r.get('/video-merges/:merge_id', videoMerges.get);
   r.delete('/video-merges/:merge_id', videoMerges.delete);
 
+  // ---------- Week 2: 时间线编辑器 ----------
+  r.get('/dramas/:id/merge/preview', videoMerges.preview);
+  r.post('/dramas/:id/merge/execute', videoMerges.executeTimeline);
+
   // ---------- assets ----------
   r.get('/assets', assets.list);
   r.post('/assets', assets.create);
@@ -310,6 +345,34 @@ function setupRouter(cfg, db, log) {
   r.put('/scene-model-map/:key', sceneModelMap.update);
   r.delete('/scene-model-map/:key', sceneModelMap.delete);
 
+  // ---------- subtitles (字幕编辑, 移植自 autoclip) ----------
+  r.post('/subtitles/parse', subtitles.parseSrt);
+  r.post('/subtitles/render', subtitles.render);
+  r.post('/subtitles/export', subtitles.exportSrt);
+  r.get('/subtitles/file', subtitles.file);
+
+  // ---------- Week 3-4: AI Agent 工作流 ----------
+  const agent = agentRoutes(db, cfg, log);
+  r.post('/dramas/:id/pipeline/start', agent.startPipeline);
+  r.get('/dramas/:id/pipeline/:pid/status', agent.getStatus);
+  r.post('/dramas/:id/pipeline/:pid/pause', agent.pausePipeline);
+  r.post('/dramas/:id/pipeline/:pid/resume', agent.resumePipeline);
+  r.post('/dramas/:id/pipeline/:pid/steps/:sid/retry', agent.retryStep);
+  r.post('/dramas/:id/pipeline/:pid/steps/:sid/skip', agent.skipStep);
+  r.get('/dramas/:id/pipelines', agent.listPipelines);
+
+  // ---------- cost (成本追踪) ----------
+    const cost = costFn(db, log);
+    r.get('/cost/episode/:episode_id', cost.episodeCost);
+    r.get('/cost/drama/:drama_id', cost.dramaCost);
+    r.get('/cost/summary', cost.summary);
+    r.get('/cost/recent', cost.recent);
+
+  // ---------- Week 8: 运维守护 + 宫格图 ----------
+  r.get('/system/health', system.getHealth);
+  r.post('/grids/compose', system.composeGrid);
+  r.post('/grids/decompose', system.decomposeVideo);
+
   // 启动时将已有的覆盖加载到 promptI18n 内存缓存
   try {
     const promptI18n = require('../services/promptI18n');
@@ -318,6 +381,16 @@ function setupRouter(cfg, db, log) {
     promptI18n.loadOverridesIntoCache(saved);
   } catch (e) {
     console.warn('Failed to load prompt overrides:', e.message);
+  }
+
+  // Week 8: 启动运维守护进程
+  try {
+    const guardianService = require('../services/guardianService');
+    const guardian = guardianService.setupGuardian(db, log, cfg);
+    guardian.start();
+    log.info('Guardian service started');
+  } catch (e) {
+    log.warn('Guardian service failed to start', { error: e.message });
   }
 
   return r;

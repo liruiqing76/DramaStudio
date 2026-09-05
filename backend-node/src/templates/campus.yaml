@@ -1,0 +1,18 @@
+id: campus
+name: 校园
+name_en: Campus
+description: 校园背景下的青春成长故事，纯真甜美或热血奋斗
+character_archetypes:
+  male: 校园学霸/运动健将/乐队主唱，18-25岁，阳光帅气，富有激情
+  female: 班花/文艺委员/社团 president，18-23岁，美丽善良，追求梦想
+  support: [ 死党室友, 老师 mentor, 暗恋对象 ]
+classic_tropes:
+  - 纯真初恋
+  - 社团竞选
+  - 期末考试压力
+  - 毕业季离别
+three_act_structure:
+  act1: 主角进入新校园或新学期，结识重要人物，初显个性与才华
+  act2: 在学习与社团中成长，经历友情爱情的考验，梦想开始萌发
+  act3: 克服成长阻痛，达成重要目标，带着回忆与希望踏上新程
+rhythm_pattern: [4,6,8,9,10,7,8,9,10,8,9,10,9,8,10,10,9,8,9,10,10,9,8,10]

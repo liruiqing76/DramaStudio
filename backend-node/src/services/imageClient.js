@@ -1485,7 +1485,10 @@ async function callImageApi(db, log, opts) {
     // doubao-seedream API 不使用 n，其他 OpenAI 兼容接口保留
     ...(!isSeedream ? { n: 1 } : {}),
     ...(effectiveSize ? { size: effectiveSize } : {}),
-    ...(quality ? { quality } : {}),
+    // quality 仅对部分模型有效（如 DALL-E 3 / Seedream 3.0+）；
+    // 通用 OpenAI 兼容接口（Agnes AI、中转站等）大多不支持该字段，传了会报 400。
+    // 因此仅当模型名匹配 DALL-E / Seedream 时附带 quality，其余一律忽略。
+    ...((quality && /dall-e|seedream|doubao|gpt-image/i.test(model || '')) ? { quality } : {}),
     // volcengine 原生或 doubao-seedream 模型均需关闭水印（默认为 true）
     ...((isVolc || isSeedream) ? { watermark: false } : {}),
     // 多张参考图时加 negative_prompt，防止模型把参考图拼成左右分割的合图
@@ -2136,15 +2139,19 @@ function refListHasCanonical(list, ref) {
  * 替换图片 workflow 占位符
  */
 function substituteImagePlaceholders(workflow, opts) {
-  const { prompt, negative_prompt, width, height, seed, image_url, denoise } = opts;
+  const { prompt, negative_prompt, width, height, seed, image_url, denoise, steps, cfg } = opts;
   let json = JSON.stringify(workflow);
-  json = json.replace(/\{\{prompt\}\}/g, (prompt || '').replace(/"/g, '\\"'));
-  json = json.replace(/\{\{negative_prompt\}\}/g, (negative_prompt || '').replace(/"/g, '\\"'));
+  // Use JSON.stringify to properly escape ALL special chars (newlines, tabs, quotes, etc.)
+  // Then strip the surrounding quotes since the value is already inside a JSON string
+  json = json.replace(/\{\{prompt\}\}/g, JSON.stringify(prompt || '').slice(1, -1));
+  json = json.replace(/\{\{negative_prompt\}\}/g, JSON.stringify(negative_prompt || '').slice(1, -1));
   json = json.replace(/\{\{seed\}\}/g, String(seed || Math.floor(Math.random() * 1000000000000)));
   json = json.replace(/\{\{width\}\}/g, String(width || 1024));
   json = json.replace(/\{\{height\}\}/g, String(height || 1024));
   json = json.replace(/\{\{image_url\}\}/g, String(image_url || ''));
   json = json.replace(/\{\{denoise\}\}/g, String(denoise != null ? denoise : 0.7));
+  json = json.replace(/\{\{steps\}\}/g, String(steps != null ? steps : 20));
+  json = json.replace(/\{\{cfg\}\}/g, String(cfg != null ? cfg : 7.0));
   return JSON.parse(json);
 }
 
@@ -2236,7 +2243,12 @@ async function callComfyUIImageApi(config, log, opts) {
   let settings = {};
   try { settings = JSON.parse(config.settings || '{}'); } catch (_) {}
 
-  const [imgW, imgH] = (size || '1024x1024').split('x').map(Number);
+  // 优先使用 settings 中的默认分辨率，其次用调用方传入的 size，最后兜底 1024x1024
+  const defaultSize = (settings.default_width && settings.default_height)
+    ? `${settings.default_width}x${settings.default_height}`
+    : '1024x1024';
+  const effectiveSize = (size && size !== '1024x1024') ? size : defaultSize;
+  const [imgW, imgH] = (effectiveSize || '1024x1024').split('x').map(Number);
   const width = imgW || 1024;
   const height = imgH || 1024;
   const actualSeed = Math.floor(Math.random() * 1000000000000);
@@ -2323,6 +2335,7 @@ async function callComfyUIImageApi(config, log, opts) {
   workflow = substituteImagePlaceholders(workflow, {
     prompt, negative_prompt: negPrompt, width, height, seed: actualSeed,
     image_url: imageUrl, denoise: settings.denoise,
+    steps: settings.steps, cfg: settings.cfg,
   });
 
   let promptId;

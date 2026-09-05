@@ -1,0 +1,18 @@
+id: romance-boss
+name: 霸总甜宠
+name_en: Boss Romance
+description: 霸道总裁与灰姑娘的甜蜜爱情故事
+character_archetypes:
+  male: 冷酷霸道总裁，28-35岁，西装革履，气场强大
+  female: 善良坚韧女主，22-28岁，清新淡雅
+  support: [ 痴情男二, 心机女配, 忠犬助理 ]
+classic_tropes:
+  - 契约婚姻
+  - 意外同居
+  - 英雄救美
+  - 真相大白
+three_act_structure:
+  act1: 男女主命运般相遇，产生冲突或契约关系
+  act2: 感情升温中遭遇误会/阻碍，关系起伏
+  act3: 误会解除，真相大白，圆满结局
+rhythm_pattern: [3,5,7,8,9,6,8,10,7,5,8,9,10,8,7,6,8,9,10,9,8,7,6,8,10]

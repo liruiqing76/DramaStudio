@@ -1,0 +1,18 @@
+id: ancient-costume
+name: 古装
+name_en: Ancient Costume
+description: 古代背景的宫斗、武侠或仙侠故事，注重礼仪与情感
+character_archetypes:
+  male: 公子哥/武林高手/帝王将相，25-35岁，儒雅或刚毅，身怀绝技
+  female: 千金小姐/女侠/后宫佳丽，22-28岁，美丽智慧，坚韧不屈
+  support: [ 忠心丫鬟, 谋士 advisor, 门派长辈 ]
+classic_tropes:
+  - 门第之争
+  - 美人计
+  - 以身试爱
+  - 生死相随
+three_act_structure:
+  act1: 主角因身世或机缘卷入权力/江湖纷争，初露锋芒
+  act2: 在复杂关系中周旋，结识盟友与对手，感情线开始发展
+  act3: 揭开最终真身或阴谋，正邪终极对决，归隐或位极人臣
+rhythm_pattern: [5,7,8,9,10,8,7,9,10,9,8,9,10,10,9,8,10,10,9,8,10,10,9,8,10]

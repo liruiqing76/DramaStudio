@@ -2526,32 +2526,6 @@ async function callComfyUiVideoApi(config, log, opts) {
     }
   }
 
-<<<<<<< HEAD
-  if (!workflow) {
-    // 构建默认LTX Video workflow（兜底）
-    workflow = buildDefaultWan21Workflow(opts, settings, log);
-    log.info('[ComfyUI] 使用内置兜底 Wan2.1 T2V workflow', { video_gen_id });
-=======
-  // i2v 模式：ComfyUI 的 LoadImage 节点只接受 input/ 目录下的文件名，不支持 URL。
-  // 需要先把图片上传到远程 ComfyUI 服务器，再用返回的文件名替换 image_url。
-  // 这对 AutoDL 等远程租卡场景至关重要——远程服务器无法访问本地 localhost URL。
-  const filesBaseUrl = opts.files_base_url;
-  const storageLocalPath = opts.storage_local_path;
-  const i2vSourceUrl = (image_url || first_frame_url || '').toString().trim();
-  if (i2vSourceUrl) {
-    try {
-      const uploadedName = await resolveAndUploadImageForComfyui(
-        base, i2vSourceUrl, filesBaseUrl, storageLocalPath, log, video_gen_id
-      );
-      // 用上传后的文件名覆盖 opts，使后续占位符替换使用文件名而非 URL
-      opts = { ...opts, image_url: uploadedName, first_frame_url: uploadedName };
-      log.info('[ComfyUI] i2v 图片已上传，使用文件名作为 LoadImage 输入', { uploaded_name: uploadedName, video_gen_id });
-    } catch (e) {
-      log.error('[ComfyUI] i2v 图片上传失败', { error: e.message, image_url: i2vSourceUrl, video_gen_id });
-      return { error: 'ComfyUI图片上传失败: ' + e.message };
-    }
->>>>>>> 76bb4f9 (chore: 全量提交当前项目所有文件(含调试脚本、测试脚本、文档、workflow配置))
-  }
 
   // 替换workflow中的占位符
   workflow = substituteWorkflowPlaceholders(workflow, opts, settings, log);

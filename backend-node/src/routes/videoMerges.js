@@ -43,6 +43,33 @@ function routes(db, log) {
         response.internalError(res, err.message);
       }
     },
+    // ── Week 2: 时间线编辑器 ──
+    preview: async (req, res) => {
+      try {
+        const dramaId = req.params.id;
+        const episodeId = req.query.episode_id;
+        const items = await videoMergeService.previewMerge(db, log, dramaId, episodeId);
+        response.success(res, { items });
+      } catch (err) {
+        log.error('video-merges preview', { error: err.message });
+        response.internalError(res, err.message);
+      }
+    },
+    executeTimeline: (req, res) => {
+      try {
+        const body = req.body || {};
+        if (!body.segments || !Array.isArray(body.segments) || body.segments.length === 0) {
+          // 无 segments 走老逻辑
+          const rec = videoMergeService.create(db, log, body);
+          return response.success(res, { merge_id: rec.merge_id, task_id: rec.task_id, ...rec });
+        }
+        const rec = videoMergeService.createWithTimeline(db, log, { ...body, drama_id: req.params.id });
+        response.created(res, { merge_id: rec.merge_id, task_id: rec.task_id, ...rec });
+      } catch (err) {
+        log.error('video-merges execute-timeline', { error: err.message });
+        response.internalError(res, err.message);
+      }
+    },
   };
 }
 

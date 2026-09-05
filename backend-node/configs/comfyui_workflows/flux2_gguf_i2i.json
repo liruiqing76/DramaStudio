@@ -1,16 +1,15 @@
 {
   "1": {
-    "class_type": "UNETLoader",
+    "class_type": "UnetLoaderGGUF",
     "inputs": {
-      "unet_name": "flux2-dev-Q4_K_M.gguf",
-      "weight_dtype": "default"
+      "unet_name": "GGUF/flux1-dev-Q8_0.gguf"
     }
   },
   "2": {
     "class_type": "DualCLIPLoader",
     "inputs": {
       "clip_name1": "clip_l.safetensors",
-      "clip_name2": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
       "type": "flux"
     }
   },
@@ -51,10 +50,10 @@
     "class_type": "KSampler",
     "inputs": {
       "seed": "{{seed}}",
-      "steps": 20,
-      "cfg": 3.5,
+      "steps": "{{steps}}",
+      "cfg": "{{cfg}}",
       "sampler_name": "euler",
-      "scheduler": "normal",
+      "scheduler": "beta",
       "denoise": "{{denoise}}",
       "model": ["1", 0],
       "positive": ["3", 0],
@@ -72,7 +71,7 @@
   "10": {
     "class_type": "SaveImage",
     "inputs": {
-      "filename_prefix": "flux2_i2i",
+      "filename_prefix": "flux1_i2i",
       "images": ["9", 0]
     }
   }

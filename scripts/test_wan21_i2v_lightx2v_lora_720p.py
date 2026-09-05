@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """wan2.1 14B I2V + Lightx2v 4-step LoRA - 720p版本"""
-import json, urllib.request, time, sys
+import json, urllib.request, time, sys, random
 
-COMFYUI_URL = "http://127.0.0.1:8189"
+COMFYUI_URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8188"
 
 workflow = {
     "1": {
@@ -11,7 +11,8 @@ workflow = {
             "model": "Wan2_1-I2V-14B-720P_fp8_e4m3fn.safetensors",
             "base_precision": "bf16",
             "quantization": "fp8_e4m3fn",
-            "load_device": "offload_device"
+            "load_device": "offload_device",
+            "attention_mode": "sdpa"
         }
     },
     "2": {
@@ -105,7 +106,7 @@ workflow = {
             "start_latent_strength": 1.0,
             "end_latent_strength": 1.0,
             "force_offload": True,
-            "enable_vae_tiling": False
+            "enable_vae_tiling": True
         }
     },
     "13": {
@@ -117,7 +118,7 @@ workflow = {
             "steps": 4,
             "cfg": 1.0,
             "shift": 5.0,
-            "seed": 42,
+            "seed": random.randint(1, 2**31),
             "force_offload": True,
             "scheduler": "dpm++_sde",
             "riflex_freq_index": 0,
@@ -130,7 +131,7 @@ workflow = {
         "inputs": {
             "vae": ["4", 0],
             "samples": ["13", 0],
-            "enable_vae_tiling": False,
+            "enable_vae_tiling": True,
             "tile_x": 272,
             "tile_y": 272,
             "tile_stride_x": 144,
@@ -155,8 +156,10 @@ workflow = {
     }
 }
 
-print("=== wan2.1 14B I2V: Lightx2v 4-step 720p ===")
-print(f"分辨率: 1280x720 | 41帧@16fps | Steps=4 | LoRA=lightx2v_4step")
+seed_val = workflow["13"]["inputs"]["seed"]
+print(f"=== wan2.1 14B I2V: Lightx2v 4-step 720p ===")
+print(f"ComfyUI: {COMFYUI_URL}")
+print(f"分辨率: 1280x720 | 41帧@16fps | Steps=4 | LoRA=lightx2v_4step | Seed={seed_val}")
 
 data = json.dumps({"prompt": workflow}).encode()
 req = urllib.request.Request(f"{COMFYUI_URL}/prompt", data=data, headers={"Content-Type": "application/json"})

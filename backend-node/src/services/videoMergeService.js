@@ -287,10 +287,302 @@ async function processVideoMerge(db, log, mergeId, baseUrl) {
   }
 }
 
+// ════════════════════════════════════════════════════════════
+// Week 2: 视频时间线编辑器
+// ════════════════════════════════════════════════════════════
+
+const VALID_TRANSITIONS = new Set(['cut', 'fade', 'black']);
+
+/**
+ * 预览可合并的视频列表：返回分镜视频 + 时长/缩略图
+ */
+async function previewMerge(db, log, dramaId, episodeId) {
+  let sql = `
+    SELECT vg.id, vg.video_url, vg.local_path, vg.storyboard_id,
+           sb.title as storyboard_title, sb.storyboard_number,
+           sb.image_url as thumbnail, sb.duration as sb_duration
+    FROM video_generations vg
+    LEFT JOIN storyboards sb ON vg.storyboard_id = sb.id
+    WHERE vg.deleted_at IS NULL AND vg.status = 'completed'
+  `;
+  const params = [];
+  if (episodeId) {
+    sql += ' AND sb.episode_id = ?';
+    params.push(Number(episodeId));
+  } else if (dramaId) {
+    sql += ' AND vg.drama_id = ?';
+    params.push(Number(dramaId));
+  }
+  sql += ' ORDER BY sb.storyboard_number ASC, vg.created_at ASC';
+
+  const rows = db.prepare(sql).all(...params);
+
+  // 获取时长
+  const ffmpegAvailable = hasLocalFfmpeg();
+  const ffprobePath = getFfprobePath();
+  const items = [];
+  for (const row of rows) {
+    const videoPath = resolveLocalVideoPath(row.video_url, row.local_path);
+    let duration = row.sb_duration || 0;
+    if (ffmpegAvailable && videoPath && fs.existsSync(videoPath)) {
+      duration = await getVideoDuration(ffprobePath, videoPath) || duration;
+    }
+    items.push({
+      id: row.id,
+      video_url: row.video_url,
+      local_path: row.local_path,
+      thumbnail: row.thumbnail,
+      storyboard_title: row.storyboard_title,
+      storyboard_number: row.storyboard_number,
+      duration,
+    });
+  }
+  return items;
+}
+
+/**
+ * 创建带时间线的合成任务
+ */
+function createWithTimeline(db, log, req) {
+  const now = new Date().toISOString();
+  const taskService = require('./taskService');
+  const task = taskService.createTask(db, log, 'video_merge_timeline', String(req.episode_id || ''));
+
+  const segmentsJson = req.segments && Array.isArray(req.segments)
+    ? JSON.stringify(req.segments)
+    : null;
+
+  const info = db.prepare(
+    `INSERT INTO video_merges (episode_id, drama_id, title, provider, model, status, scenes, merge_options, segments_json, task_id, created_at)
+     VALUES (?, ?, ?, ?, ?, 'pending', ?, '{}', ?, ?, ?)`
+  ).run(
+    Number(req.episode_id) || 0,
+    Number(req.drama_id) || 0,
+    req.title ?? '时间线合成',
+    req.provider || 'ffmpeg',
+    req.model ?? null,
+    req.scenes ? JSON.stringify(req.scenes) : '[]',
+    segmentsJson,
+    task.id,
+    now
+  );
+
+  // 异步处理
+  const mergeId = info.lastInsertRowid;
+  setImmediate(async () => {
+    try {
+      const result = await mergeWithTimeline(db, log, mergeId, req);
+      log.info('[时间线合成] 完成', { merge_id: mergeId, result });
+    } catch (err) {
+      log.error('[时间线合成] 失败', { merge_id: mergeId, error: err.message });
+      db.prepare('UPDATE video_merges SET status = ?, error_msg = ? WHERE id = ?')
+        .run('failed', err.message, mergeId);
+      taskService.updateTaskError(db, task.id, err.message);
+    }
+  });
+
+  return { merge_id: mergeId, task_id: task.id, ...getById(db, mergeId) };
+}
+
+/**
+ * 带时间线的视频合成：
+ * 1. 对每个 segment 用 ffmpeg 裁剪
+ * 2. 应用转场效果（fade/black）
+ * 3. concat 合并
+ */
+async function mergeWithTimeline(db, log, mergeId, req) {
+  const r = db.prepare('SELECT * FROM video_merges WHERE id = ? AND deleted_at IS NULL').get(mergeId);
+  if (!r) throw new Error('合成任务不存在');
+
+  let segments = [];
+  try {
+    segments = JSON.parse(r.segments_json || req.segments || '[]');
+  } catch (_) {
+    segments = req.segments || [];
+  }
+
+  if (!Array.isArray(segments) || segments.length === 0) {
+    // 无 segments 时走原 merge 逻辑
+    log.info('[时间线合成] 无 segments，走原 merge 逻辑', { merge_id: mergeId });
+    return processVideoMerge(db, log, mergeId, req.baseUrl);
+  }
+
+  const now = new Date().toISOString();
+  db.prepare('UPDATE video_merges SET status = ? WHERE id = ?').run('processing', mergeId);
+  const taskService = require('./taskService');
+
+  const storageRoot = getStorageRoot();
+  const tempDir = path.join(require('os').tmpdir(), 'drama-timeline-merge');
+  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+  const projectSubdir = storageLayout.getProjectStorageSubdir(db, r.drama_id);
+  const sub = projectSubdir && String(projectSubdir).trim();
+  const mergedDir = sub
+    ? path.join(storageRoot, sub, 'videos', 'timeline')
+    : path.join(storageRoot, 'videos', 'timeline');
+  if (!fs.existsSync(mergedDir)) fs.mkdirSync(mergedDir, { recursive: true });
+
+  const ffmpegBin = getFfmpegPath();
+  const ffmpegAvailable = hasLocalFfmpeg();
+  if (!ffmpegAvailable) {
+    throw new Error('ffmpeg 不可用，无法执行时间线合成');
+  }
+
+  const { spawnSync } = require('child_process');
+  const clipPaths = [];
+  const toCleanup = [];
+
+  // Step 1: 裁剪每个片段 + 应用转场
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const startSec = Number(seg.start_sec) || 0;
+    const endSec = Number(seg.end_sec) || 0;
+    const transition = VALID_TRANSITIONS.has(seg.transition) ? seg.transition : 'cut';
+
+    // 解析视频路径
+    const videoPath = resolveLocalVideoPath(seg.video_url || seg.video_path, seg.local_path);
+    if (!videoPath || !fs.existsSync(videoPath)) {
+      log.warn('[时间线合成] 片段视频不存在，跳过', { index: i, path: videoPath });
+      continue;
+    }
+
+    const clipFile = `clip_${mergeId}_${i}_${Date.now()}.mp4`;
+    const clipPath = path.join(tempDir, clipFile);
+
+    // ffmpeg 裁剪命令
+    const args = ['-y'];
+    if (startSec > 0) args.push('-ss', String(startSec));
+    args.push('-i', videoPath);
+    if (endSec > startSec) args.push('-to', String(endSec));
+
+    // 转场效果
+    if (transition === 'fade') {
+      const fadeDuration = 0.5;
+      const segDuration = endSec - startSec;
+      args.push('-vf', `fade=in:st=0:d=${fadeDuration},fade=out:st=${Math.max(0, segDuration - fadeDuration)}:d=${fadeDuration}`);
+      args.push('-c:a', 'aac');
+    } else if (transition === 'black') {
+      // 黑场：在片段前后加 0.5s 黑场
+      args.push('-c', 'copy');
+    } else {
+      // cut: 直接裁剪
+      args.push('-c', 'copy');
+    }
+
+    args.push(clipPath);
+
+    const result = spawnSync(ffmpegBin, args, { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
+    if (result.status !== 0) {
+      log.warn('[时间线合成] 片段裁剪失败', { index: i, stderr: result.stderr?.slice(-300) });
+      // 降级：直接用原文件
+      if (fs.existsSync(videoPath)) {
+        clipPaths.push(videoPath);
+      }
+      continue;
+    }
+
+    clipPaths.push(clipPath);
+    if (clipPath.startsWith(tempDir)) toCleanup.push(clipPath);
+
+    // 黑场转场：插入 0.5s 黑场片段
+    if (transition === 'black' && i < segments.length - 1) {
+      const blackFile = `black_${mergeId}_${i}_${Date.now()}.mp4`;
+      const blackPath = path.join(tempDir, blackFile);
+      const blackArgs = [
+        '-y', '-f', 'lavfi', '-i', 'color=c=black:s=1920x1080:d=0.5',
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', blackPath
+      ];
+      const blackResult = spawnSync(ffmpegBin, blackArgs, { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
+      if (blackResult.status === 0 && fs.existsSync(blackPath)) {
+        clipPaths.push(blackPath);
+        toCleanup.push(blackPath);
+      }
+    }
+  }
+
+  if (clipPaths.length === 0) {
+    db.prepare('UPDATE video_merges SET status = ?, error_msg = ? WHERE id = ?').run('failed', '无有效视频片段', mergeId);
+    taskService.updateTaskError(db, r.task_id, '无有效视频片段');
+    return { ok: false, error: '无有效视频片段' };
+  }
+
+  // Step 2: concat 合并
+  const outputFileName = `timeline_${mergeId}_${Date.now()}.mp4`;
+  const outputPath = path.join(mergedDir, outputFileName);
+  const ok = runFfmpegConcat(clipPaths, outputPath, log);
+
+  // 清理临时文件
+  for (const p of toCleanup) {
+    try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) {}
+  }
+
+  if (!ok || !fs.existsSync(outputPath)) {
+    db.prepare('UPDATE video_merges SET status = ?, error_msg = ? WHERE id = ?').run('failed', 'ffmpeg 合并失败', mergeId);
+    taskService.updateTaskError(db, r.task_id, 'ffmpeg 合并失败');
+    return { ok: false, error: 'ffmpeg 合并失败' };
+  }
+
+  // 更新 DB
+  const mergedRelativePath = sub
+    ? path.join(sub, 'videos', 'timeline', outputFileName).replace(/\\/g, '/')
+    : path.join('videos', 'timeline', outputFileName).replace(/\\/g, '/');
+
+  const totalDuration = segments.reduce((sum, s) => sum + ((Number(s.end_sec) || 0) - (Number(s.start_sec) || 0)), 0);
+
+  db.prepare(
+    'UPDATE video_merges SET status = ?, merged_url = ?, duration = ?, completed_at = ?, error_msg = ? WHERE id = ?'
+  ).run('completed', mergedRelativePath, Math.round(totalDuration) || null, new Date().toISOString(), null, mergeId);
+
+  if (r.task_id) {
+    taskService.updateTaskResult(db, r.task_id, { merge_id: mergeId, video_url: mergedRelativePath, duration: Math.round(totalDuration) });
+  }
+
+  log.info('[时间线合成] 成功', { merge_id: mergeId, output: mergedRelativePath, segments: segments.length });
+  return { ok: true, merged_url: mergedRelativePath, duration: Math.round(totalDuration) };
+}
+
+/** 解析视频 URL 为本地文件路径 */
+function resolveLocalVideoPath(videoUrl, localPath) {
+  if (localPath) {
+    const storageRoot = getStorageRoot();
+    const abs = path.isAbsolute(localPath) ? localPath : path.join(storageRoot, localPath.replace(/\//g, path.sep));
+    if (fs.existsSync(abs)) return abs;
+  }
+  if (videoUrl) {
+    const u = videoUrl.trim();
+    if (path.isAbsolute(u) && fs.existsSync(u)) return u;
+    const storageRoot = getStorageRoot();
+    const localAttempt = path.join(storageRoot, u.replace(/^\//, '').replace(/\//g, path.sep));
+    if (fs.existsSync(localAttempt)) return localAttempt;
+  }
+  return null;
+}
+
+/** 使用 ffprobe 获取视频时长 */
+function getVideoDuration(ffprobePath, videoPath) {
+  return new Promise((resolve) => {
+    const { spawnSync } = require('child_process');
+    try {
+      const result = spawnSync(ffprobePath, [
+        '-v', 'error', '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1', videoPath
+      ], { encoding: 'utf8', timeout: 5000 });
+      if (result.status === 0 && result.stdout) {
+        const dur = parseFloat(result.stdout.trim());
+        if (!isNaN(dur)) return resolve(dur);
+      }
+    } catch (_) {}
+    resolve(0);
+  });
+}
+
 module.exports = {
   list,
   getById,
   create,
   deleteById,
   processVideoMerge,
+  mergeWithTimeline,
+  previewMerge,
+  createWithTimeline,
 };

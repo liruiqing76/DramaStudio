@@ -1,0 +1,18 @@
+id: sweet-pet
+name: 甜宠
+name_en: Sweet Pet
+description: 轻松甜蜜的日常爱情故事，充满治愈和温暖
+character_archetypes:
+  male: 温暖可靠男主，25-32岁，阳光帅气，宠妻狂魔
+  female: 可爱俏皮女主，20-26岁，乐观开朗，治愈系
+  support: [ 闺蜜好伙伴, 搞笑同事, 智慧长辈 ]
+classic_tropes:
+  - 青梅竹马
+  - 意外同居
+  - 夺回初吻
+  - 互相救赎
+three_act_structure:
+  act1: 两人在日常生活中相识，产生微妙好感
+  act2: 相处中发现彼此优点，感情逐渐升温
+  act3: 克服小误会，坦诚相待，甜蜜在一起
+rhythm_pattern: [4,6,7,8,9,7,8,9,10,8,7,9,10,9,8,10,9,8,7,9,10,8,7,9]

@@ -4,8 +4,12 @@ const path = require('path');
 const fs = require('fs');
 const { getDb } = require('./db/index.js');
 const { loadConfig } = require('./config/index.js');
-const logger = require('./logger.js');
 const { setupRouter } = require('./routes/index.js');
+
+// Phase 1 中间件
+const { logger, requestIdMiddleware } = require('./middleware/logger');
+const { authMiddleware } = require('./middleware/auth');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 function createApp() {
   const config = loadConfig();
@@ -30,10 +34,8 @@ function createApp() {
     })
   );
 
-  app.use((req, res, next) => {
-    log.info(req.method, req.path);
-    next();
-  });
+  // ── Phase 1: requestId + 请求日志 ──
+  app.use(requestIdMiddleware);
 
   // 静态资源目录：统一转为绝对路径（打包 exe 下相对路径可能解析异常）
   const storageRoot = config.storage?.local_path
@@ -45,7 +47,7 @@ function createApp() {
     if (!fs.existsSync(storageRoot)) fs.mkdirSync(storageRoot, { recursive: true });
     app.use('/static', express.static(storageRoot));
   } catch (e) {
-    console.warn('Static storage mount skipped:', e.message);
+    log.warn('Static storage mount skipped:', e.message);
   }
 
   app.get('/health', (req, res) => {
@@ -56,11 +58,11 @@ function createApp() {
     });
   });
 
-  app.use('/api/v1', setupRouter(config, db, log));
+  // ── Phase 1: 鉴权（默认关闭，配置 auth_enabled: true 开启）──
+  app.use('/api/v1', authMiddleware(config, db), setupRouter(config, db, log));
 
   // 前端静态资源（sxy：web/dist）；Electron 打包时可设 WEB_DIST_PATH
   const webDist = process.env.WEB_DIST_PATH || path.join(process.cwd(), '..', 'frontweb', 'dist');
-  console.log('webDist', webDist);
   if (fs.existsSync(webDist)) {
     app.use('/assets', express.static(path.join(webDist, 'assets')));
     // 服务 dist 根目录的静态文件（如 wx.jpg、favicon.ico 等）
@@ -87,22 +89,9 @@ function createApp() {
     });
   }
 
-  app.use((req, res) => {
-    if (req.path.startsWith('/api')) {
-      return res.status(404).json({ error: 'API endpoint not found' });
-    }
-    res.status(404).send('Not Found');
-  });
-
-  app.use((err, req, res, next) => {
-    log.errorw('Unhandled error', { error: err.message, path: req.path });
-    if (!res.headersSent) {
-      const isFileTooLarge = err.code === 'LIMIT_FILE_SIZE' || (err.message && err.message.includes('File too large'));
-      const status = isFileTooLarge ? 413 : 500;
-      const message = isFileTooLarge ? '图片大小不能超过 16MB，请压缩后重试' : (err.message || '服务器错误');
-      res.status(status).json({ success: false, error: { code: isFileTooLarge ? 'FILE_TOO_LARGE' : 'INTERNAL_ERROR', message }, timestamp: new Date().toISOString() });
-    }
-  });
+  // ── Phase 1: 统一 404 + 错误处理 ──
+  app.use(notFoundHandler);
+  app.use(errorHandler);
 
   return { app, config, db };
 }

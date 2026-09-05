@@ -1,0 +1,18 @@
+id: time-travel
+name: 穿越
+name_en: Time Travel
+description: 现代人意外穿越到古代/未来，展开奇幻冒险与爱情
+character_archetypes:
+  male: 穿越者或本时空重要人物，25-35岁，智勇双全，适应力强
+  female: 本时空重要角色或另一穿越者，22-28岁，坚韧聪慧
+  support: [ 朝堂重臣, 姐妹闺蜜, 神秘导师 ]
+classic_tropes:
+  - 意外穿越
+  - 以现代知识改变历史
+  - 权谋斗争
+  - 跨时空相爱
+three_act_structure:
+  act1: 主角意外穿越，面对生存危机与环境适应
+  act2: 逐步融入新环境，利用优势谋求发展，卷入局部冲突
+  act3: 解决核心危机，完成个人使命，抉择是否归属此时空
+rhythm_pattern: [4,6,8,9,10,8,7,9,10,8,9,10,9,8,10,10,9,8,9,10,10,9,8,10]
