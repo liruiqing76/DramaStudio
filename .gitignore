@@ -1,0 +1,65 @@
+参考前端/
+.trae
+backend-node/scripts
+backend-node/configs/ai-configs-stary.json
+backend-node/configs/ai-configs-qudao.json
+backend-node/configs/ai-configs-2026-03-12 (5).json
+backend-node/data/drama_generator.db
+backend-node/data/drama_generator.db-shm
+backend-node/data/drama_generator.db-wal
+.opencode
+.cursor
+.codegraph
+desktop/dist/win-unpacked
+server
+desktop/backend-app-secure/configs/ai-configs-qudao.json
+desktop/backend-app-secure/configs/ai-configs-外发.json
+desktop/backend-app-secure/configs/config.yaml
+.DS_Store
+backend-node/deploy-pack
+desktop/backend-app-secure
+desktop/release-icon-test
+desktop/release-icon-test-7
+desktop/backend-app-secure
+
+# 测试输出和归档文件
+archive/
+output/
+test_output/
+tests/
+test_cases/
+pid_*.txt
+prompt_id*.txt
+final_pid.txt
+last_pid.txt
+*.mp4
+*.log
+test_*.png
+test_*.jpg
+
+# IDE/工具缓存目录（各AI工具自动生成，勿提交）
+.claude/
+.codeartsdoer/
+.codegraph/
+.cursor/
+.opencode/
+.evolution/
+.omc/
+.omo/
+.open-mem/
+.reasonix/
+.trae
+.idea/
+.vscode/
+
+# open-mem: Auto-generated folder context files.
+# Uncomment to exclude from version control (recommended for large projects):
+# **/AGENTS.md
+
+# 临时调试脚本（含一次性诊断、可能携带明文密钥），不入版本库
+backend-node/scripts/_tmp_*.js
+backend-node/scripts/_debug_*.js
+backend-node/scripts/_probe_*.js
+backend-node/scripts/_audit_*.js
+backend-node/scripts/_verify_*.js
+backend-node/scripts/_test_*.js

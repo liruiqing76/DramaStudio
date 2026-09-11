@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "chrome": {
+      "command": "node",
+      "args": ["C:\\Users\\leslie\\.codebuddy\\plugins\\marketplaces\\codebuddy-plugins-official\\external_plugins\\superpowers-chrome\\mcp\\dist\\index.js"],
+      "disabled": false
+    }
+  }
+}

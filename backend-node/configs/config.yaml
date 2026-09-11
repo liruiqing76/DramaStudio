@@ -1,0 +1,54 @@
+app:
+  name: LocalMiniDrama API
+  version: 1.0.0
+  debug: true
+  language: zh
+server:
+  port: 5679
+  host: 0.0.0.0
+  cors_origins:
+    - http://localhost:3012
+  read_timeout: 600
+  write_timeout: 600
+  insecure_tls: true
+  auth_enabled: false
+database:
+  type: sqlite
+  path: ./data/drama_generator.db
+  max_idle: 10
+  max_open: 100
+storage:
+  type: local
+  local_path: ./data/storage
+  base_url: http://localhost:5679/static
+video:
+  generation_timeout_minutes: 30
+ai:
+  default_text_provider: deepseek
+  default_image_provider: agnes
+  default_video_provider: agnes
+  vlm_quality:
+    enabled: false
+    max_iterations: 2
+    score_threshold: 7
+    model: ''
+style:
+  default_style: ''
+  default_role_style: full body and face clearly visible, character centered, consistent facial features, high detail, masterpiece, best quality
+  default_scene_style: wide establishing shot, highly detailed environment, sharp focus, rich atmosphere, masterpiece, best quality
+  default_prop_style: object centered, clean simple background, studio lighting, sharp focus, high detail, masterpiece, best quality
+  default_image_ratio: '16:9'
+  default_video_ratio: '16:9'
+  default_prop_ratio: '1:1'
+  default_image_size: 1024x1024
+vendor_lock:
+  enabled: false
+  config_file: ai-configs-qudao.json
+image_proxy:
+  # 是否把本地图片上传到第三方图床后再传给视频模型。
+  # 默认 false —— 优先使用 Data URI Base64 直传（Agnes 官方支持），
+  # 避免第三方图床不稳定导致的成批失败：
+  #   `port 5679 is not allowed`（图床拉不到本机 URL）
+  #   `download input image failed: HTTP 404`（图床缓存失效）
+  # 仅在确实需要图床（部分模型不接受 base64）时才改为 true。
+  use_for_video: false

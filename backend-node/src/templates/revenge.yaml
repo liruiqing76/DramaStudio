@@ -1,0 +1,18 @@
+id: revenge
+name: 复仇
+name_en: Revenge
+description: 被背叛后逆袭复仇的爽感故事，节奏紧凑反转多
+character_archetypes:
+  male: 深藏不露的复仇者，28-35岁，心思缜密，城府极深
+  female: 聪慧果敢女主，24-30岁，外柔内刚，爱憎分明
+  support: [ 卑鄙反派, 忠心盟友, 亦敌亦友的神秘人 ]
+classic_tropes:
+  - 隐忍归来
+  - 布局复仇
+  - 身世反转
+  - 仇人伏法
+three_act_structure:
+  act1: 主角遭受背叛与陷害，跌入谷底后隐忍蛰伏
+  act2: 精心布局步步为营，瓦解仇人势力，同时揭开真相
+  act3: 最终对决，反派落网，主角完成救赎与和解
+rhythm_pattern: [5,7,9,10,8,6,9,10,8,7,9,10,10,9,8,7,9,10,10,9,8,7,9,10,10]
