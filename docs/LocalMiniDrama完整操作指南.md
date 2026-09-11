@@ -186,11 +186,15 @@ npm run dev
 
 用于生成分镜视频片段。
 
-**选项 A：使用在线服务（推荐新手）**
+**选项 A：使用在线服务（推荐）**
 
-- **服务商**：火山引擎 Volcengine（豆包）
-- **API Key**：你的火山引擎 API Key
-- **模型**：doubao-video-pro
+当前视频生成聚焦三家主力模型：
+
+| 服务商 | 推荐模型 | 说明 |
+|--------|----------|------|
+| 阿里云 DashScope | `wan3.0-i2v` / `wan3.0-kf2v` / `wan3.0-t2v` / `wan3.0-r2v` | 图生视频 / 首尾帧 / 文生视频 / 参考图 |
+| MiniMax（海螺） | `MiniMax-Hailuo-03` / `MiniMax-Hailuo-03-Fast` | 图生视频 |
+| Agnes AI | `agnes-video-2.5-flash` / `agnes-video-2.5` | 文生视频 / 关键帧 / 参考图，推荐主力 |
 
 **获取 API Key**：
 1. 访问 https://www.volcengine.com/product/doubao
@@ -198,16 +202,16 @@ npm run dev
 3. 进入"API 管理"
 4. 创建新的 API Key
 
-**选项 B：使用本地 ComfyUI（推荐高级用户）**
+**选项 B：使用本地 ComfyUI（可选，需自备 GPU）**
 
 - **服务类型**：ComfyUI
-- **服务地址**：`http://127.0.0.1:8188`（本地）或 `http://你的服务器IP:8188`（远程）
-- **模型**：LTX Video / Wan2.1 等
+- **服务地址**：`http://127.0.0.1:8188`（本地）或 `http://你的服务器IP:8188`
+- **说明**：主要用于本地图片生成；视频生成建议使用上述云端模型
 
 **ComfyUI 安装**：
 1. 下载 ComfyUI：https://github.com/comfyanonymous/ComfyUI
 2. 安装依赖：`pip install -r requirements.txt`
-3. 下载视频模型（如 LTX Video）
+3. 下载所需模型（放入 `models/` 对应子目录）
 4. 启动 ComfyUI：`python main.py`
 5. 访问 `http://127.0.0.1:8188`
 
