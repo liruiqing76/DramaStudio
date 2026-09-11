@@ -1,0 +1,154 @@
+{
+  "comfyui_url": "http://127.0.0.1:8188",
+  "default_model": "ltx-video-2b",
+  "available_models": [
+    {
+      "name": "ltx-video-2b",
+      "display_name": "LTX Video 2B (快速)",
+      "model_path": "ltx-video-2b-v0.9.5.safetensors",
+      "description": "2B轻量模型，速度快但质量稍低",
+      "total_size": "8.9GB",
+      "recommended": true
+    },
+    {
+      "name": "ltx-video-13b-distilled",
+      "display_name": "LTX Video 13B 蒸馏版 (推荐)",
+      "model_path": "ltx-video-13b-distilled.safetensors",
+      "description": "13B蒸馏版，质量好且速度较快",
+      "total_size": "13GB"
+    },
+    {
+      "name": "ltx-video-13b",
+      "display_name": "LTX Video 13B (高质量)",
+      "model_path": "ltxv-13b-0.9.7-distilled-lora128.safetensors",
+      "description": "13B全量模型，质量最高，速度较慢",
+      "total_size": "26GB"
+    }
+  ],
+  "clip_models": [
+    {
+      "name": "t5xxl_fp8_e4m3fn.safetensors",
+      "type": "ltxv",
+      "description": "T5 XXL FP8 文本编码器"
+    }
+  ],
+  "workflow_templates": {
+    "t2v_default": {
+      "name": "LTX Video T2V (文生视频)",
+      "description": "文本描述生成视频，2秒约49帧",
+      "workflow": {
+        "1": {
+          "class_type": "CheckpointLoaderSimple",
+          "inputs": { "ckpt_name": "ltx-video-2b-v0.9.5.safetensors" }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": { "clip_name": "t5xxl_fp8_e4m3fn.safetensors", "type": "ltxv" }
+        },
+        "3": {
+          "class_type": "CLIPTextEncode",
+          "inputs": { "text": "{{prompt}}", "clip": ["2", 0] }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": { "text": "{{negative_prompt}}", "clip": ["2", 0] }
+        },
+        "5": {
+          "class_type": "EmptyLTXVLatentVideo",
+          "inputs": { "width": "{{width}}", "height": "{{height}}", "length": "{{frames}}", "batch_size": 1 }
+        },
+        "6": {
+          "class_type": "LTXVScheduler",
+          "inputs": { "steps": "{{steps}}", "max_shift": 2.05, "base_shift": 0.95, "stretch": true, "terminal": 0.1, "latent": ["5", 0] }
+        },
+        "7": {
+          "class_type": "LTXVConditioning",
+          "inputs": { "positive": ["3", 0], "negative": ["4", 0], "frame_rate": 25.0 }
+        },
+        "8": {
+          "class_type": "KSamplerSelect",
+          "inputs": { "sampler_name": "{{sampler_name}}" }
+        },
+        "9": {
+          "class_type": "SamplerCustom",
+          "inputs": { "model": ["1", 0], "add_noise": true, "noise_seed": "{{seed}}", "cfg": "{{cfg}}", "positive": ["7", 0], "negative": ["7", 1], "sampler": ["8", 0], "sigmas": ["6", 0], "latent_image": ["5", 0] }
+        },
+        "10": {
+          "class_type": "VAEDecode",
+          "inputs": { "samples": ["9", 0], "vae": ["1", 2] }
+        },
+        "11": {
+          "class_type": "VHS_VideoCombine",
+          "inputs": { "images": ["10", 0], "frame_rate": 25, "loop_count": 1, "filename_prefix": "{{filename_prefix}}", "format": "video/h264-mp4", "pingpong": false, "save_output": true }
+        }
+      }
+    },
+    "i2v_default": {
+      "name": "LTX Video I2V (图生视频)",
+      "description": "参考图片 + 文本描述生成视频",
+      "workflow": {
+        "1": {
+          "class_type": "CheckpointLoaderSimple",
+          "inputs": { "ckpt_name": "ltx-video-2b-v0.9.5.safetensors" }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": { "clip_name": "t5xxl_fp8_e4m3fn.safetensors", "type": "ltxv" }
+        },
+        "3": {
+          "class_type": "CLIPTextEncode",
+          "inputs": { "text": "{{prompt}}", "clip": ["2", 0] }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": { "text": "{{negative_prompt}}", "clip": ["2", 0] }
+        },
+        "5": {
+          "class_type": "LoadImage",
+          "inputs": { "image": "{{image_url}}" }
+        },
+        "6": {
+          "class_type": "LTXVImgToVideo",
+          "inputs": { "positive": ["3", 0], "negative": ["4", 0], "vae": ["1", 2], "image": ["5", 0], "width": "{{width}}", "height": "{{height}}", "length": "{{frames}}", "batch_size": 1, "strength": 1.0 }
+        },
+        "7": {
+          "class_type": "LTXVScheduler",
+          "inputs": { "steps": "{{steps}}", "max_shift": 2.05, "base_shift": 0.95, "stretch": true, "terminal": 0.1, "latent": ["6", 2] }
+        },
+        "8": {
+          "class_type": "KSamplerSelect",
+          "inputs": { "sampler_name": "{{sampler_name}}" }
+        },
+        "9": {
+          "class_type": "SamplerCustom",
+          "inputs": { "model": ["1", 0], "add_noise": true, "noise_seed": "{{seed}}", "cfg": "{{cfg}}", "positive": ["6", 0], "negative": ["6", 1], "sampler": ["8", 0], "sigmas": ["7", 0], "latent_image": ["6", 2] }
+        },
+        "10": {
+          "class_type": "VAEDecode",
+          "inputs": { "samples": ["9", 0], "vae": ["1", 2] }
+        },
+        "11": {
+          "class_type": "VHS_VideoCombine",
+          "inputs": { "images": ["10", 0], "frame_rate": 25, "loop_count": 1, "filename_prefix": "{{filename_prefix}}", "format": "video/h264-mp4", "pingpong": false, "save_output": true }
+        }
+      }
+    }
+  },
+  "default_params": {
+    "steps": 20,
+    "cfg": 3.0,
+    "width": 768,
+    "height": 512,
+    "frames": 49,
+    "frame_rate": 25.0,
+    "negative_prompt": "low quality, blurry, distorted, bad anatomy, watermark, text, nsfw",
+    "sampler_name": "euler",
+    "filename_prefix": "LocalMiniDrama_",
+    "format": "video/h264-mp4"
+  },
+  "download_info": {
+    "method": "ModelScope",
+    "model_id": "Lightricks/LTX-Video",
+    "comment": "通过 modelscope 或 huggingface 下载标准 diffusers 格式"
+  }
+}
