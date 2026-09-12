@@ -50,6 +50,9 @@ export const characterAPI = {
   reextractFromScript(characterId) {
     return request.post(`/characters/${characterId}/reextract-from-script`, {})
   },
+  chatModify(characterId, message) {
+    return request.post(`/characters/${characterId}/chat-modify`, { message })
+  },
   sd2Certify(characterId) {
     return request.post(`/characters/${characterId}/sd2-certify`, {})
   },

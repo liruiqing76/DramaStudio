@@ -1723,7 +1723,15 @@
         <el-form-item :label="$t('t316')">
           <div style="width:100%">
             <el-input v-model="editCharacterForm.appearance" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" :placeholder="$t('t317')" />
-            <el-button v-if="editCharacterForm.id" size="small" type="warning" plain :loading="reextractingFromScript" @click="doReextractFromScript" style="margin-top:6px">从剧本重新提取</el-button>
+            <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+              <el-button v-if="editCharacterForm.id" size="small" type="warning" plain :loading="reextractingFromScript" @click="doReextractFromScript">从剧本重新提取</el-button>
+            </div>
+            <div v-if="editCharacterForm.id" style="margin-top:8px">
+              <div style="display:flex;gap:8px;align-items:flex-start">
+                <el-input v-model="charChatMessage" placeholder="AI 对话修改，如：把年龄改成25岁，服装改成红色连衣裙" size="small" style="flex:1" @keyup.enter="doChatModify" />
+                <el-button size="small" type="primary" :loading="charChatModifying" :disabled="!charChatMessage.trim()" @click="doChatModify">AI 修改</el-button>
+              </div>
+            </div>
           </div>
         </el-form-item>
         <el-form-item :label="$t('t318')">
@@ -2857,7 +2865,7 @@ async function runConcurrently(items, concurrency, fn, options = {}) {
 // ── Composable: Characters ────────────────────────────
 const {
   showEditCharacter, editCharacterForm, editCharacterSaving, editCharacterPromptGenerating,
-  extractingCharAppearance, extractingAnchors, reextractingFromScript, addCharRefImage, addCharRefFileInput,
+  extractingCharAppearance, extractingAnchors, reextractingFromScript, charChatModifying, charChatMessage, addCharRefImage, addCharRefFileInput,
   charactersGenerating, generatingCharIds, sd2CertifyingId, showCharSd2Cert, charSd2CertPayload,
   sd2VoiceUploadingId,
   showCharLibrary, charLibraryList, charLibraryLoading, charLibraryPage, charLibraryPageSize,
@@ -2866,7 +2874,7 @@ const {
   showEditCharLibrary, editCharLibraryForm,
   editCharLibrarySaving, addingCharToLibraryId, addingCharToMaterialId, addingCharFromLibraryId,
   charRoleLabel, onGenerateCharacters: onGenerateCharactersRaw, openAddCharacter, stopCharacterPromptPoll, editCharacter,
-  saveCharRefImageIfAny, submitEditCharacter, doGenerateCharacterPrompt, doExtractCharFromImage, doReextractFromScript,
+  saveCharRefImageIfAny, submitEditCharacter, doGenerateCharacterPrompt, doExtractCharFromImage, doReextractFromScript, doChatModify,
   extractIdentityAnchors, clearCharRefImage, onCloseCharDialog, onDeleteCharacter, onGenerateCharacterImage, onSd2CertifyCharacter, onSd2CertifyRefresh, sd2ActionLabel, onSd2PrimaryAction, openCharSd2CertDialog,
   onSd2VoicePrimaryAction, onSd2VoiceReplace, sd2VoiceActionLabel, playSd2Voice,
   loadCharLibraryList, debouncedLoadCharLibrary, loadDramaAllCharList, debouncedLoadDramaAllCharList,

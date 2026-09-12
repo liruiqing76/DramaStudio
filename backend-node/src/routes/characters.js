@@ -263,6 +263,22 @@ function routes(db, cfg, log, uploadService) {
         response.internalError(res, err.message);
       }
     },
+    chatModify: async (req, res) => {
+      try {
+        const { chatModifyCharacter } = require('../services/characterGenerationService');
+        const userMessage = (req.body?.message || '').trim();
+        if (!userMessage) return response.badRequest(res, '修改需求不能为空');
+        const out = await chatModifyCharacter(db, cfg, log, req.params.id, userMessage);
+        if (!out.ok) {
+          if (out.error === '角色不存在') return response.notFound(res, out.error);
+          return response.badRequest(res, out.error);
+        }
+        response.success(res, out.character);
+      } catch (err) {
+        log.error('characters chat-modify', { error: err.message });
+        response.internalError(res, err.message);
+      }
+    },
     generateFourViewImage: async (req, res) => {
       try {
         const body = req.body || {};

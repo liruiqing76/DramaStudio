@@ -58,6 +58,8 @@ export function useCharacters(deps) {
   const extractingCharAppearance = ref(false)
   const extractingAnchors = ref(false)
   const reextractingFromScript = ref(false)
+  const charChatModifying = ref(false)
+  const charChatMessage = ref('')
   const addCharRefImage = ref(null)   // { dataUrl, filename }
   const addCharRefFileInput = ref(null)
   let editCharacterPollTimer = null
@@ -525,6 +527,27 @@ export function useCharacters(deps) {
       ElMessage.error(e.message || '重新提取失败')
     } finally {
       reextractingFromScript.value = false
+    }
+  }
+
+  async function doChatModify() {
+    const form = editCharacterForm.value
+    if (!form?.id) return
+    const msg = charChatMessage.value.trim()
+    if (!msg) return
+    charChatModifying.value = true
+    try {
+      const res = await characterAPI.chatModify(form.id, msg)
+      if (res?.appearance) {
+        form.appearance = res.appearance
+        if (res.polished_prompt) form.polished_prompt = res.polished_prompt
+        charChatMessage.value = ''
+        ElMessage.success('AI 修改完成')
+      }
+    } catch (e) {
+      ElMessage.error(e.message || 'AI 修改失败')
+    } finally {
+      charChatModifying.value = false
     }
   }
 
@@ -1013,6 +1036,8 @@ export function useCharacters(deps) {
     extractingCharAppearance,
     extractingAnchors,
     reextractingFromScript,
+    charChatModifying,
+    charChatMessage,
     addCharRefImage,
     addCharRefFileInput,
     // 衣橱状态
@@ -1081,6 +1106,7 @@ export function useCharacters(deps) {
     doGenerateCharacterPrompt,
     doExtractCharFromImage,
     doReextractFromScript,
+    doChatModify,
     extractIdentityAnchors,
     clearCharRefImage,
     onCloseCharDialog,

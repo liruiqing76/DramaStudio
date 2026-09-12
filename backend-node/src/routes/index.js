@@ -232,6 +232,7 @@ const templates = templateRoutes.routes(db, cfg, log);
   r.post('/characters/:id/extract-from-image', characters.extractFromImage);
   r.post('/characters/:id/extract-anchors', characters.extractAnchors);
   r.post('/characters/:id/reextract-from-script', characters.reextractFromScript);
+  r.post('/characters/:id/chat-modify', characters.chatModify);
 
   // ---------- Week 6-7: TTS + 唇形同步 ----------
   r.post('/characters/:id/voice', voice.createVoice);

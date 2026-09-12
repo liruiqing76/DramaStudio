@@ -302,8 +302,78 @@ async function reextractSingleCharacter(db, cfg, log, characterId) {
   };
 }
 
+/**
+ * AI 对话式修改角色 appearance
+ * 用户输入修改需求，AI 根据当前 appearance 生成修改后的 appearance
+ */
+async function chatModifyCharacter(db, cfg, log, characterId, userMessage) {
+  const charRow = db.prepare(
+    'SELECT id, drama_id, name, appearance, description FROM characters WHERE id = ? AND deleted_at IS NULL'
+  ).get(Number(characterId));
+  if (!charRow) return { ok: false, error: '角色不存在' };
+
+  const dramaRow = db.prepare('SELECT id, style, metadata FROM dramas WHERE id = ? AND deleted_at IS NULL').get(charRow.drama_id);
+  let effectiveCfg = cfg;
+  try {
+    effectiveCfg = mergeCfgStyleWithDrama({ ...cfg, style: { ...(cfg?.style || {}) } }, dramaRow || {});
+  } catch (_) {}
+
+  const systemPrompt = `你是一个角色外貌修改助手。用户会给你当前角色的外貌描述和修改需求，你需要输出修改后的完整外貌描述。
+
+规则：
+1. 保持 7 维度结构：基础信息（性别/年龄/身高/体型）、骨相/脸型、五官、辨识标记、发型、肤色与肤质、标志性服装
+2. 只修改用户要求的部分，其他部分保持不变
+3. 输出必须是完整的外貌描述文本（不是 JSON），直接可以用于 AI 生图
+4. 保持中文输出
+5. 不要输出任何解释说明，只输出修改后的外貌描述`;
+
+  const userPrompt = `角色名称：${charRow.name}
+
+当前外貌描述：
+${charRow.appearance || '（暂无）'}
+
+修改需求：
+${userMessage}
+
+请输出修改后的完整外貌描述：`;
+
+  let newAppearance;
+  try {
+    newAppearance = await aiClient.generateText(db, log, 'text', userPrompt, systemPrompt, {
+      scene_key: 'character_chat_modify',
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
+    newAppearance = newAppearance.trim();
+  } catch (err) {
+    return { ok: false, error: 'AI 修改失败: ' + err.message };
+  }
+
+  const now = new Date().toISOString();
+  db.prepare('UPDATE characters SET appearance = ?, updated_at = ? WHERE id = ?').run(newAppearance, now, charRow.id);
+
+  try {
+    await characterLibraryService.generateCharacterPromptOnly(db, log, effectiveCfg, charRow.id, undefined, undefined);
+  } catch (err) {
+    log.warn('[AI修改] 预生成polished_prompt失败', { character_id: charRow.id, error: err.message });
+  }
+
+  const updatedChar = db.prepare('SELECT polished_prompt FROM characters WHERE id = ?').get(charRow.id);
+  log.info('[AI修改] 完成', { character_id: charRow.id, name: charRow.name });
+  return {
+    ok: true,
+    character: {
+      id: charRow.id,
+      name: charRow.name,
+      appearance: newAppearance,
+      polished_prompt: updatedChar?.polished_prompt ?? null,
+    },
+  };
+}
+
 module.exports = {
   generateCharacters,
   enrichIdentityAnchors,
   reextractSingleCharacter,
+  chatModifyCharacter,
 };
