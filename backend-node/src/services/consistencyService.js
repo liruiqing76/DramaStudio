@@ -1,6 +1,7 @@
 // 跨集/全剧一致性校验：只做【可检查、不中断】的静态体检，返回发现的问题清单。
-// 定位：靠近简述「逐集串行、角色/场景只靠存在即跳过」导致的一致性问题。
-// 不修改任何数据，供 CLI（--check-consistency）与 GET /dramas/:id/consistency 调用。
+// 背景：剧集按「逐集串行、角色/场景只靠存在即跳过」的方式生成，
+// 容易出现角色形象漂移、同地点场景外观不一致等问题，本服务用于提前体检。
+// 不修改任何数据，供 GET /dramas/:id/consistency 调用。
 
 function trim(s) {
   return String(s || '').trim();
@@ -92,14 +93,25 @@ function checkDramaConsistency(db, dramaId) {
     sceneByPair.set(key, list);
   }
   for (const [loc, list] of sceneByPair.entries()) {
-    // 同一地点出现在不同集（不同 scene 行）→ 若按每集独立生成，外形可能不一致
-    if (list.length > 1) {
-      const epsSet = new Set(list.map((x) => x.ep));
+    if (list.length < 2) continue;
+    const epsSet = new Set(list.map((x) => x.ep).filter((x) => x != null));
+    // 同一地点出现在不同集：各集若独立生成场景图，外观可能不一致 → 值得提醒
+    if (epsSet.size > 1) {
       findings.push({
         severity: 'info', code: 'scene_cross_episode',
-        message: `地点「${loc}」在 ${list.length} 个分镜/场景中重复（涉 ${epsSet.size} 集），注意保持场景视觉一致`,
+        message: `地点「${loc}」跨 ${epsSet.size} 集出现 ${list.length} 次，各集若独立生成场景图，注意保持视觉一致`,
         count: list.length,
       });
+    } else if (list.length > 1) {
+      // 同一集内重复：可能是「同地点不同时间/光照」的合理拆分，也可能是重复建场景
+      const times = new Set(list.map((x) => x.time));
+      if (times.size === 1) {
+        findings.push({
+          severity: 'info', code: 'scene_dup_in_episode',
+          message: `地点「${loc}」在同一集内重复 ${list.length} 次且时间相同，可考虑复用同一场景素材`,
+          count: list.length,
+        });
+      }
     }
   }
 

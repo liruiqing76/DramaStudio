@@ -7095,6 +7095,7 @@ async function runOneClickPipeline(textOnly = false) {
         const taskId = res?.task_id
         if (taskId) {
           const result = await pollTaskWithPause(taskId, () => loadDrama())
+          if (result?.canceled) return
           if (result?.paused) { await waitForResume(); return }
           if (result?.error) { addPipelineError(t('t716'), result.error); return }
         } else {
@@ -7120,6 +7121,7 @@ async function runOneClickPipeline(textOnly = false) {
         const taskId = res?.task_id
         if (taskId) {
           const result = await pollTaskWithPause(taskId, () => loadDrama())
+          if (result?.canceled) return
           if (result?.paused) { await waitForResume(); return }
           if (result?.error) { addPipelineError(t('t719'), result.error); return }
         } else {
@@ -7145,6 +7147,7 @@ async function runOneClickPipeline(textOnly = false) {
         const taskId = res?.task_id
         if (taskId) {
           const result = await pollTaskWithPause(taskId, () => loadDrama())
+          if (result?.canceled) return
           if (result?.paused) { await waitForResume(); return }
           if (result?.error) { addPipelineError(t('t722'), result.error); return }
         } else {
@@ -7191,6 +7194,7 @@ async function runOneClickPipeline(textOnly = false) {
           break
         }
           const result = sbResult
+          if (result?.canceled) return
           if (result?.paused) { clearInterval(sbRefreshTimer); await waitForResume(); return }
           if (result?.error) {
             // 任务失败（重试已用尽），但后端可能已保存了部分分镜，确保最新状态显示出来再停止
@@ -7265,6 +7269,7 @@ async function runOneClickPipeline(textOnly = false) {
             const taskId = res?.image_generation?.task_id ?? res?.task_id
             if (taskId) {
               const result = await pollTaskWithPause(taskId, () => loadDrama())
+              if (result?.canceled) return { canceled: true }
               if (result?.paused) return { paused: true }
               if (result?.error) throw new Error(result.error)
             } else {
@@ -7301,6 +7306,7 @@ async function runOneClickPipeline(textOnly = false) {
             const taskId = res?.image_generation?.task_id ?? res?.task_id
             if (taskId) {
               const result = await pollTaskWithPause(taskId, () => loadDrama())
+              if (result?.canceled) return { canceled: true }
               if (result?.paused) return { paused: true }
               if (result?.error) throw new Error(result.error)
             } else {
@@ -7336,6 +7342,7 @@ async function runOneClickPipeline(textOnly = false) {
             const taskId = res?.image_generation?.task_id ?? res?.task_id
             if (taskId) {
               const result = await pollTaskWithPause(taskId, () => loadDrama())
+              if (result?.canceled) return { canceled: true }
               if (result?.paused) return { paused: true }
               if (result?.error) throw new Error(result.error)
             } else {
@@ -7397,6 +7404,7 @@ async function runOneClickPipeline(textOnly = false) {
             if (res?.task_id) {
               // 视频：单次最长等 10 分钟（AGNES 重启等场景会一直 pending，用更短的卡死上限尽早重提交）
               const result = await pollTaskWithPause(res.task_id, () => loadSingleStoryboardMedia(sb.id), 300)
+              if (result?.canceled) return { canceled: true }
               if (result?.paused) return { paused: true }
               if (result?.error) throw new Error(result.error)
             } else await loadSingleStoryboardMedia(sb.id)
@@ -7466,6 +7474,7 @@ async function runOneClickPipeline(textOnly = false) {
             if (res?.task_id) {
               // 视频：单次最长等 10 分钟（AGNES 重启等场景会一直 pending，用更短的卡死上限尽早重提交）
               const result = await pollTaskWithPause(res.task_id, () => loadSingleStoryboardMedia(sb.id), 300)
+              if (result?.canceled) return { canceled: true }
               if (result?.paused) return { paused: true }
               if (result?.error) throw new Error(result.error)
             } else await loadSingleStoryboardMedia(sb.id)
@@ -7550,6 +7559,7 @@ async function runRepairPipeline() {
         const taskId = res?.task_id
         if (taskId) {
           const result = await pollTaskWithPause(taskId, () => loadDrama())
+          if (result?.canceled) return
           if (result?.paused) { await waitForResume(); return }
           if (result?.error) { addPipelineError(t('t751'), result.error); return }
         } else await loadDrama()
@@ -7572,6 +7582,7 @@ async function runRepairPipeline() {
           const taskId = res?.image_generation?.task_id ?? res?.task_id
           if (taskId) {
             const result = await pollTaskWithPause(taskId, () => loadDrama())
+            if (result?.canceled) return { canceled: true }
             if (result?.paused) return { paused: true }
             if (result?.error) throw new Error(result.error)
           } else {
@@ -7598,6 +7609,7 @@ async function runRepairPipeline() {
         const taskId = res?.task_id
         if (taskId) {
           const result = await pollTaskWithPause(taskId, () => loadDrama())
+          if (result?.canceled) return
           if (result?.paused) { await waitForResume(); return }
           if (result?.error) { addPipelineError(t('t719'), result.error); return }
         } else await loadDrama()
@@ -7621,6 +7633,7 @@ async function runRepairPipeline() {
           const taskId = res?.image_generation?.task_id ?? res?.task_id
           if (taskId) {
             const result = await pollTaskWithPause(taskId, () => loadDrama())
+            if (result?.canceled) return { canceled: true }
             if (result?.paused) return { paused: true }
             if (result?.error) throw new Error(result.error)
           } else {
@@ -7647,6 +7660,7 @@ async function runRepairPipeline() {
         const taskId = res?.task_id
         if (taskId) {
           const result = await pollTaskWithPause(taskId, () => loadDrama())
+          if (result?.canceled) return
           if (result?.paused) { await waitForResume(); return }
           if (result?.error) { addPipelineError(t('t722'), result.error); /* 不中断 */ }
         } else await loadDrama()
@@ -7671,6 +7685,7 @@ async function runRepairPipeline() {
             const taskId = res?.image_generation?.task_id ?? res?.task_id
             if (taskId) {
               const result = await pollTaskWithPause(taskId, () => loadDrama())
+              if (result?.canceled) return { canceled: true }
               if (result?.paused) return { paused: true }
               if (result?.error) throw new Error(result.error)
             } else {
@@ -7707,6 +7722,7 @@ async function runRepairPipeline() {
         const taskId = res?.task_id ?? (typeof res === 'string' ? res : null)
         if (taskId) {
           const result = await pollTaskWithPause(taskId, () => loadDrama())
+          if (result?.canceled) return
           if (result?.paused) { await waitForResume(); return }
           if (result?.error) { addPipelineError(t('t758'), result.error); return }
         }
@@ -7758,6 +7774,7 @@ async function runRepairPipeline() {
           })
           if (res?.task_id) {
             const result = await pollTaskWithPause(res.task_id, () => loadSingleStoryboardMedia(sb.id))
+            if (result?.canceled) return { canceled: true }
             if (result?.paused) return { paused: true }
             if (result?.error) throw new Error(result.error)
           } else await loadSingleStoryboardMedia(sb.id)
@@ -7808,6 +7825,7 @@ async function runRepairPipeline() {
           })
           if (res?.task_id) {
             const result = await pollTaskWithPause(res.task_id, () => loadSingleStoryboardMedia(sb.id))
+            if (result?.canceled) return { canceled: true }
             if (result?.paused) return { paused: true }
             if (result?.error) throw new Error(result.error)
           } else await loadSingleStoryboardMedia(sb.id)
