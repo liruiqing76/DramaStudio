@@ -2608,8 +2608,116 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 import StoryboardBoard from '@/components/StoryboardBoard.vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, reactive, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Setting, Plus, Minus, Sunny, Moon, MagicStick, Upload, Delete, Check, Loading, WarningFilled, User, Box, Picture, Film, VideoCamera, Document, InfoFilled, Refresh, ZoomIn, QuestionFilled, DocumentAdd, Expand, Fold, VideoPlay } from '@element-plus/icons-vue'
+import { useTheme } from '@/composables/useTheme'
+import { useFilmStore } from '@/stores/film'
+import { useGenerationTaskStore, GEN_RESOURCE } from '@/stores/generationTaskStore'
+import { syncGeneratingSetsFromStore, buildEpisodeContext, buildExtractTaskMeta, isEpisodeExtractRunning } from '@/composables/useGenerationTaskSync'
+import { dramaAPI } from '@/api/drama'
+import { generationAPI } from '@/api/generation'
+import { aiAPI } from '@/api/ai'
+import { characterAPI } from '@/api/characters'
+import { propAPI } from '@/api/props'
+import { sceneAPI } from '@/api/scenes'
+import { taskAPI } from '@/api/task'
+import { imagesAPI } from '@/api/images'
+import { videosAPI } from '@/api/videos'
+import { storyboardsAPI } from '@/api/storyboards'
+import { uploadAPI } from '@/api/upload'
+import { characterLibraryAPI } from '@/api/characterLibrary'
+import { sceneLibraryAPI } from '@/api/sceneLibrary'
+import { propLibraryAPI } from '@/api/propLibrary'
+import { generationSettingsAPI } from '@/api/prompts'
+import { parseScriptIntoEpisodes, episodesListToPlainScript } from '@/utils/scriptEpisodes'
+import { exportStoryboardSheet } from '@/utils/exportStoryboardSheet'
+import StylePickerButton from '@/components/StylePickerButton.vue'
+import AIConfigContent from '@/components/AIConfigContent.vue'
+import UniversalSegmentOmniAtEditor from '@/components/UniversalSegmentOmniAtEditor.vue'
+import {
+  generationStyleOptions,
+  getStylePromptEn,
+  getStylePromptZh,
+  stylePromptMetadataForSave,
+  backfillDramaStylePromptMetadataIfNeeded,
+} from '@/constants/styleOptions'
+import { useNavigation } from '@/composables/filmCreate/useNavigation'
+import { runGenerateStoryFromPremise } from '@/composables/useStoryGeneration'
+import { useCharacters } from '@/composables/filmCreate/useCharacters'
+import { useProps as usePropsComposable } from '@/composables/filmCreate/useProps'
+import { useScenes } from '@/composables/filmCreate/useScenes'
+
+const route = useRoute()
+const router = useRouter()
+const store = useFilmStore()
+const genStore = useGenerationTaskStore()
+const { isDark, toggle: toggleTheme } = useTheme()
+const { videoResolution: storeVideoResolution } = storeToRefs(store)
+
+// ── Composable: Navigation ─────────────────────────────
+const { navCollapsed, storyboardMenuExpanded, toggleNav, scrollToTop, scrollToAnchor } = useNavigation()
+
+function goList() {
+  router.push('/')
+}
+
+
+const showAiConfigDialog = ref(false)
+watch(showAiConfigDialog, (open) => {
+  if (!open) invalidateActiveVideoAiConfigCache()
+})
+const storyInput = ref('')
+const storyStyle = ref('')
+const storyType = ref('')
+const storyEpisodeCount = ref(1)
+const storyGenerating = ref(false)
+/** 剧本工作台：create 创作 | select 选择预览 */
+const scriptWorkbenchMode = ref('create')
+const showSelectScriptDialog = ref(false)
+const selectScriptLoading = ref(false)
+const selectScriptImporting = ref(false)
+const selectScriptDramas = ref([])
+/** 选择剧本弹窗列表：排除当前打开的项目，避免误点「导入」到自身 */
+const selectableScriptDramas = computed(() => {
+  const cur = store.dramaId
+  const list = selectScriptDramas.value || []
+  if (cur == null) return list
+  return list.filter((d) => Number(d.id) !== Number(cur))
+})
+const selectPreviewEpisodeId = ref('')
+// P1-2: 小说导入
+const showNovelImport = ref(false)
+const novelImportMode = ref('text')
+const novelText = ref('')
+const novelFileName = ref('')
+const novelFileContent = ref('')
+const novelMaxChapters = ref(10)
+const novelAiSummarize = ref(false)
+const novelImporting = ref(false)
+const scriptTitle = ref('')
+const selectedEpisodeId = ref(null)
+/** 保存剧本后用于恢复选中集（后端重插后 id 会变，用 episode_number 匹配） */
+const savedCurrentEpisodeNumber = ref(1)
+const scriptLanguage = ref('zh')
+const scriptStoryboardStyle = ref('')
+const scriptGenerating = ref(false)
+const generationStyle = ref('')
+const projectAspectRatio = ref('16:9')
+const videoClipDuration = ref(5)
+
+/** 根据 value 查找样式选项对象 */
+function _findStyleOption(val) {
+  for (const group of generationStyleOptions) {
+    const found = group.options.find(o => o.value === val)
+    if (found) return found
+  }
+  return null
+}
 const { t } = useI18n()
-{{ $t('t498') }}
+
 
 /** 传给图像/视频 AI 用的英文 prompt（效果最好）；
  *  找不到 promptEn 时降级到 prompt，再降级到原始值 */
