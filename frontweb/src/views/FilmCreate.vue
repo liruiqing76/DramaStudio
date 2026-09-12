@@ -1737,6 +1737,64 @@
         <el-form-item :label="$t('t318')">
           <el-input v-model="editCharacterForm.description" type="textarea" :autosize="{ minRows: 3, maxRows: 8 }" :placeholder="$t('t319')" />
         </el-form-item>
+        <el-form-item v-if="editCharacterForm.id" label="服装造型">
+          <div style="width:100%">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:13px;color:#606266">多套服装（{{ charOutfits.length }} 套）</span>
+              <el-button size="small" type="primary" plain @click="onOutfitCreate">+ 添加服装</el-button>
+            </div>
+            <div v-if="charOutfitsLoading" style="color:#909399;font-size:12px">加载中...</div>
+            <div v-for="o in charOutfits" :key="o.id" style="border:1px solid #ebeef5;border-radius:6px;padding:10px;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <strong>{{ o.name }}</strong>
+                <el-tag v-if="o.is_default" type="success" size="small">默认</el-tag>
+                <div style="flex:1"></div>
+                <el-button v-if="!o.is_default" size="small" text @click="onOutfitSetDefault(o)">设默认</el-button>
+                <el-button size="small" text @click="onOutfitEdit(o)">编辑</el-button>
+                <el-button size="small" text :loading="outfitViewGenIds.has(o.id)" @click="onOutfitGenerateViews(o)">生成三视图</el-button>
+                <el-button size="small" text type="danger" @click="onOutfitDelete(o)">删除</el-button>
+              </div>
+              <div v-if="o.description" style="font-size:12px;color:#909399;margin-top:4px">{{ o.description }}</div>
+              <div v-if="outfitViewSrc(o,'front') || outfitViewSrc(o,'side') || outfitViewSrc(o,'back')" style="display:flex;gap:8px;margin-top:8px">
+                <img v-if="outfitViewSrc(o,'front')" :src="outfitViewSrc(o,'front')" style="width:80px;height:120px;object-fit:cover;border-radius:4px" />
+                <img v-if="outfitViewSrc(o,'side')" :src="outfitViewSrc(o,'side')" style="width:80px;height:120px;object-fit:cover;border-radius:4px" />
+                <img v-if="outfitViewSrc(o,'back')" :src="outfitViewSrc(o,'back')" style="width:80px;height:120px;object-fit:cover;border-radius:4px" />
+              </div>
+            </div>
+            <div v-if="outfitPanelOpen" style="border:1px solid #d9ecff;border-radius:6px;padding:12px;margin-top:8px;background:#f5f7fa">
+              <el-form label-width="80px" size="small">
+                <el-form-item label="名称" required>
+                  <el-input v-model="outfitForm.name" placeholder="如：日常装、战斗装、正式装" />
+                </el-form-item>
+                <el-form-item label="描述">
+                  <el-input v-model="outfitForm.description" type="textarea" :autosize="{ minRows: 2, maxRows: 5 }" placeholder="服装描述" />
+                </el-form-item>
+                <el-form-item label="发型">
+                  <el-input v-model="outfitForm.hair_style" placeholder="如：黑色高马尾" />
+                </el-form-item>
+                <el-form-item label="脸型">
+                  <el-input v-model="outfitForm.face_shape" placeholder="如：鹅蛋脸" />
+                </el-form-item>
+                <el-form-item label="体型">
+                  <el-input v-model="outfitForm.body_type" placeholder="如：标准修长" />
+                </el-form-item>
+                <el-form-item label="肤色">
+                  <el-input v-model="outfitForm.skin_tone" placeholder="如：冷白皮" />
+                </el-form-item>
+                <el-form-item label="配饰">
+                  <el-input v-model="outfitForm.signature_accessory" placeholder="如：银色耳环" />
+                </el-form-item>
+                <el-form-item>
+                  <div style="display:flex;gap:8px">
+                    <el-button type="primary" :loading="outfitSaving" @click="onOutfitSave">保存</el-button>
+                    <el-button v-if="outfitForm.id" :loading="outfitAnchorsExtracting" @click="onOutfitExtractAnchors">AI 提炼特征</el-button>
+                    <el-button @click="onOutfitCancel">取消</el-button>
+                  </div>
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item v-if="editCharacterForm.id">
           <template #label>
             <span style="font-size:12px;line-height:1.4;white-space:normal;word-break:break-all;display:inline-block;width:90px">{{ $t('t302') }}</span>
@@ -2882,6 +2940,11 @@ const {
   openEditCharLibrary, submitEditCharLibrary,
   onDeleteCharLibrary, onAddCharacterToLibrary, onAddCharacterToMaterialLibrary,
   onAddCharFromLibrary, onAddDramaCharToEpisode,
+  // 衣橱
+  charEditTab, charOutfits, charOutfitsLoading, outfitPanelOpen, outfitForm, outfitSaving,
+  outfitAnchorsExtracting, outfitViewGenIds,
+  onOutfitCreate, onOutfitSave, onOutfitCancel, onOutfitEdit, onOutfitSetDefault, onOutfitDelete,
+  onOutfitExtractAnchors, onOutfitGenerateViews, outfitViewSrc,
 } = useCharacters({ store, dramaId, currentEpisodeId, getSelectedStyle, loadDrama, pollTask, pollUntilResourceHasImage, hasAssetImage })
 
 // ── Composable: Props ──────────────────────────────────
