@@ -27,7 +27,7 @@
 
 > 📌 **关于数据流向**：项目工程、剧本、角色与分镜数据全部存储在本机 SQLite 与本地目录。
 > 图片/视频/文本生成需要调用你自行配置的云端 AI 服务（Agnes / 通义 / MiniMax 等），
-> 对应素材会发送至该服务商。若需完全离线，可接入本地 ComfyUI（见下文「本地部署」）。
+> 对应素材会发送至该服务商。
 
 ---
 
@@ -211,20 +211,6 @@ npm run dev
 
 ---
 
-## 🖥 本地部署（可选）
-
-本工具默认走**云端 API**（Agnes / 通义 / MiniMax），开箱即用，无需显卡。
-
-如果你希望图片生成完全本地化、不依赖云 API，可通过 **ComfyUI** 接入本地模型：
-
-| 方式 | 说明 |
-|------|------|
-| ComfyUI（本地/局域网） | 在 `backend-node/configs/comfyui_workflows/` 放置 workflow JSON，AI 配置页选择 `comfyui` provider |
-
-> 相关配置样例见 `backend-node/configs/comfyui_ltx_config.json`。
-> 视频生成暂不提供本地部署路径，建议使用上述三家云端模型。
-
----
 
 ## 🏗 项目架构
 
@@ -239,7 +225,7 @@ LocalMiniDrama/
 │   │   ├── templates/     # 题材模板（YAML，9 个题材）
 │   │   └── utils/         # 工具（含 Agnes 限流器）
 │   ├── skills/            # 提示词模板（外置 Markdown，可 UI 覆盖）
-│   └── configs/           # config.yaml、ComfyUI workflow
+│   └── configs/           # config.yaml（AI 服务配置）
 ├── frontweb/              # Vue 3 前端（Vite + Element Plus）
 │   └── src/
 │       ├── views/

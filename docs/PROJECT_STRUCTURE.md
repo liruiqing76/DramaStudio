@@ -38,7 +38,7 @@ backend-node/
 │   ├── templates/             # 题材模板（YAML）
 │   └── utils/                 # 工具（含 agnesRateLimiter.js 限流器）
 ├── skills/                    # 提示词模板（单一来源，外置 Markdown）
-├── configs/                   # config.yaml、ComfyUI workflow、SQL 配置样例
+├── configs/                   # config.yaml、SQL 配置样例
 ├── migrations/                # 数据库迁移 SQL
 ├── scripts/                   # 管线脚本（run_pipeline.js）
 ├── test/                      # 单元测试（Node.js 内置 test runner）

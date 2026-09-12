@@ -112,7 +112,7 @@ LocalMiniDrama/
 │   │   ├── routes/          # 24 个路由模块 + 总入口 index.js
 │   │   ├── services/        # 50+ 业务/AI 客户端服务
 │   │   └── utils/           # ffmpeg 定位 / JSON 安全解析 / 画风合并 / 清洗等
-│   ├── configs/             # config.yaml + comfyui_workflows + 预设 SQL
+│   ├── configs/             # config.yaml + 预设 SQL
 │   ├── migrations/          # 01_init.sql ~ 22_*.sql 增量迁移
 │   ├── test/                # node --test 单测（4 个文件）
 │   ├── tools/ffmpeg/        # Windows ffmpeg.exe（含 README）
@@ -137,8 +137,7 @@ LocalMiniDrama/
 │   ├── ffmpeg-mac/          # macOS ffmpeg 资源
 │   └── dist/                # 打包临时产物
 ├── docs/                    # 文档（本文件所在目录）
-├── scripts/                 # ComfyUI 部署与测试辅助脚本
-├── .github/                 # Issue/PR 模板 + release workflow
+
 ├── start.bat / run_dev.bat / run_dev.ps1   # 一键启动
 └── README.md / AGENTS.md / CHANGELOG.md / docs/*.md
 ```
@@ -641,7 +640,7 @@ npm run dev
 
 浏览器访问 `http://localhost:3013`（Vite 把 `/api`、`/static` 代理到 5679）。
 
-> 也可双击根目录 `run_dev.bat`（两个窗口分别启动前后端并自动开浏览器）或 `start.bat`（自动装依赖→迁移→可选 SSH 隧道连远程 ComfyUI→启前后端）。
+> 也可双击根目录 `run_dev.bat`（两个窗口分别启动前后端并自动开浏览器）或 `start.bat`（自动装依赖→迁移→启前后端）。
 
 ### 10.2 生产模式（单端口）
 

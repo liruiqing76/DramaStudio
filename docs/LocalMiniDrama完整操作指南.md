@@ -202,23 +202,6 @@ npm run dev
 3. 进入"API 管理"
 4. 创建新的 API Key
 
-**选项 B：使用本地 ComfyUI（可选，需自备 GPU）**
-
-- **服务类型**：ComfyUI
-- **服务地址**：`http://127.0.0.1:8188`（本地）或 `http://你的服务器IP:8188`
-- **说明**：主要用于本地图片生成；视频生成建议使用上述云端模型
-
-**ComfyUI 安装**：
-1. 下载 ComfyUI：https://github.com/comfyanonymous/ComfyUI
-2. 安装依赖：`pip install -r requirements.txt`
-3. 下载所需模型（放入 `models/` 对应子目录）
-4. 启动 ComfyUI：`python main.py`
-5. 访问 `http://127.0.0.1:8188`
-
-**测试连接**：
-1. 填写服务地址
-2. 点击"测试连接"按钮
-3. 看到"连接成功"提示
 
 #### 1.4 保存配置
 
@@ -492,7 +475,7 @@ Windows: C:\Users\你的用户名\AppData\Roaming\LocalMiniDrama\backend\configs
 
 - ✅ 视频生成服务已配置（AI 配置页面）
 - ✅ 分镜图片已生成
-- ✅ 如果使用 ComfyUI，模型已下载完成
+
 
 #### 9.2 生成单个分镜视频
 
@@ -503,7 +486,7 @@ Windows: C:\Users\你的用户名\AppData\Roaming\LocalMiniDrama\backend\configs
 
 **生成逻辑**：
 - **在线服务**：上传分镜图片和提示词到服务端，等待生成
-- **ComfyUI**：调用 ComfyUI API，在工作流中生成视频
+
 
 #### 9.3 批量生成分镜视频
 
@@ -627,22 +610,6 @@ npm run dev
 
 ---
 
-### Q5：ComfyUI 连接失败
-
-**错误信息**：`ComfyUI connection failed`
-
-**可能原因**：
-1. ComfyUI 未启动
-2. 服务地址错误
-3. 模型未下载完成
-
-**解决方法**：
-1. 检查 ComfyUI 是否启动（访问 `http://127.0.0.1:8188`）
-2. 检查服务地址是否正确
-3. 检查模型是否下载完成
-4. 查看 ComfyUI 控制台，查看详细错误信息
-
----
 
 ### Q6：视频合成失败
 
@@ -711,8 +678,8 @@ ai:
     model: wanx-v1
   
   video:
-    provider: comfyui
-    base_url: http://127.0.0.1:8188
+    provider: agnes
+    base_url: https://api.agnes-ai.cn/v1
 
 # 存储配置
 storage:
