@@ -65,7 +65,7 @@ This project is built entirely in JavaScript from scratch. Connect your own AI A
 
 ### ✏️ Storyboard Fine Editing
 
-- **Classic vs Universal mode**: Toggle per storyboard. **Classic** shows the main reference image in the center (video is blocked with a prompt if no reference image); **Universal mode** uses a **segment prompt** field (`universal_segment_text`) for omni video APIs — pair with **`volcengine_omni`** (Volcengine Ark Seedance 2.0 multi-image) or **`kling_omni`** (Kling Omni), with a pre-submit config check. Classic fields remain; switch back anytime
+- **Classic vs Universal mode**: Toggle per storyboard. **Classic** shows the main reference image in the center (video is blocked with a prompt if no reference image); **Universal mode** uses a **segment prompt** field (`universal_segment_text`) which pairs well with reference-image video APIs such as **Agnes Video 2.5** reference mode, with a pre-submit config check. Classic fields remain; switch back anytime
 - **`@Image1` … slot references**: In the segment prompt, use **`@图片1` / `@图片2` …** to align with the reference order (scene → characters → props; excludes the classic center panel image); “Generate from storyboard” can fill camera/movement hints. If the segment prompt is non-empty, **only that text** is sent for video (structured video fields are not concatenated)
 - **Tail-frame link** (v1.2.7): Extract the last frame from the current shot’s completed video and set it as the next shot’s first frame
 - **Export storyboard sheet** (v1.2.7): Export the current episode to an HTML table for review and collaboration
@@ -106,14 +106,13 @@ Double-click → open **AI Config** → enter your API key → start creating.
 
 ```bash
 # 1. Clone
-git clone https://github.com/your-username/LocalMiniDrama.git
-cd LocalMiniDrama
+git clone https://gitee.com/liruiqing76/MiniDrama.git
+cd MiniDrama
 
 # 2. Backend (port 5679)
 cd backend-node
 npm install
-cp configs/config.example.yaml configs/config.yaml
-# Edit config.yaml — set your AI API endpoint and key
+# configs/config.yaml ships with the repo — adjust the AI API endpoint and key as needed
 npm run migrate   # first run: initialise DB
 npm start
 
@@ -184,15 +183,14 @@ LocalMiniDrama/
 
 Full version history → **[CHANGELOG](changelog.md)**
 
-**Latest v1.2.7 highlights:**
+**Latest highlights:**
 - 🆕 **Tail-frame link** — one-click extract the last frame of the current shot’s video (server-side ffmpeg) and set it as the **next shot’s first frame**
 - 🆕 **Export storyboard sheet** — export the current episode’s shots to an **HTML table** (dialogue, narration, universal segment, prompts, etc.)
 - 🆕 **Unified generation task progress** — shared Pinia store for character/scene/prop/storyboard image & video async jobs, with recovery after page refresh
-- 🔧 **Video mode guards** — Universal mode checks **`kling_omni`** or **`volcengine_omni` + Seedance 2.x** before Omni multi-ref submit; Classic mode blocks video when no storyboard reference image
-- 🔧 **Separate first/last frame binding** — last frame no longer overwrites the main panel; Seedance 2.0 certified assets marked stale when the character main image changes
-
-**v1.2.6 / v1.2.5 highlights:**
-- 🆕 **Seedance 2.0 + Universal storyboard mode** — `volcengine_omni` / `kling_omni`, multi-ref **`@图片N`**, `universal_segment_text` (see [CHANGELOG](../CHANGELOG.md))
+- 🆕 **Agnes AI end-to-end integration** — text / image / video all wired to the official spec, with official RPM rate limiting, Data URI reference images, and `<Picture N>` semantic references
+- 🆕 **Script-writing system upgrade** — six-beat episode structure, character/scene consistency anchors, storyboard filmability rules; all prompts externalised to `skills/*.md`
+- 🔧 **Video model consolidation** — focused on WAN 3.0 / MiniMax Hailuo-03 / Agnes Video 2.5
+- 🔧 **Separate first/last frame binding** — last frame no longer overwrites the main panel; character assets marked stale when the character main image changes
 
 **v1.2.3 highlights:**
 - 🆕 **Storyboard narrator (narration)** — optional per-shot voice-over text separate from character `dialogue`, for TTS and editing

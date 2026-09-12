@@ -59,9 +59,7 @@ cd backend-node
 npm install
 
 # 复制配置文件模板
-cp configs/config.example.yaml configs/config.yaml
-# Windows PowerShell:
-# copy configs\config.example.yaml configs\config.yaml
+# configs/config.yaml 已随仓库提供，按需修改其中的 AI API 地址与密钥
 
 # 编辑 config.yaml，填入你的 AI API 地址与密钥（见配置指南）
 

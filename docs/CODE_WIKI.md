@@ -39,7 +39,9 @@
 
 ## 1. 项目概述
 
-**LocalMiniDrama（本地短剧助手）** 是一个"本地离线、开箱即用、素材不上云"的 AI 短剧 & 漫剧生成工具。用户提供故事梗概与画风后，系统自动完成：**多集剧本 → 角色/场景/道具提取 → 分镜脚本 → 静帧图 → 视频片段 → 整集成片** 的全流程，并支持多家 AI 服务商（文本 / 图片 / 视频三类能力独立配置）。
+**LocalMiniDrama（本地短剧助手）** 是一个**本地部署、数据自控、开箱即用**的 AI 短剧 & 漫剧生成工具。用户提供故事梗概与画风后，系统自动完成：**多集剧本 → 角色/场景/道具提取 → 分镜脚本 → 静帧图 → 视频片段 → 整集成片** 的全流程，并支持多家 AI 服务商（文本 / 图片 / 视频三类能力独立配置）。
+
+> 项目工程、剧本、角色与分镜数据存储在本机；图片/视频/文本生成需调用用户自行配置的云端 AI 服务，对应素材会发送至该服务商。
 
 | 项 | 说明 |
 |---|---|
@@ -141,7 +143,7 @@ LocalMiniDrama/
 └── README.md / AGENTS.md / CHANGELOG.md / docs/*.md
 ```
 
-> 说明：`docs/PROJECT_STRUCTURE.md` 为早期整理报告，部分目录（如 `test_cases/`、`archive/`、`routes/static.js`、`config.example.yaml`）已在演进中移除或改名，以本文档与磁盘代码为准。
+> 说明：`docs/PROJECT_STRUCTURE.md` 记录当前磁盘实际目录结构，与本文档互为补充。
 
 ---
 
@@ -337,7 +339,11 @@ image_proxy: # use_for_video（是否图床上传）
 | `normalizeAspectRatioForApi` | 画幅归一化 |
 | 各 `callXxxVideoApi` | `callVolcengineOmniVideoApi`(Seedance2 全能+音频参考)、`callKlingOmniVideoApi`、`callKlingVideoApi`、`callDashScopeVideoApi`、`callGeminiVideoApi`(Veo)、`callViduVideoApi`、`callVeo3VideoApi`、`callSoraVideoApi`、`callComfyUiVideoApi`、`callXaiVideoApi`、`callJimengAiApiVideo` |
 
-**协议判定优先级**：显式 `api_protocol`（openai/volcengine/dashscope/gemini/nano_banana/volcengine_omni/kling_omni/veo3/sora）> 由 provider 推断。
+**协议判定优先级**：显式 `api_protocol`（openai/volcengine/dashscope/gemini/nano_banana/agnes/minimax/volcengine_omni/kling_omni/veo3/sora）> 由 provider 推断。
+
+> **视频模型收敛**：AI 配置页仅暴露 WAN 3.0 / MiniMax Hailuo-03 / Agnes Video 2.5 三家
+> （见 `frontweb/src/components/AIConfigContent.vue` 的 `providerConfigs.video`）。
+> 上表其余适配器代码仍保留，恢复只需在前端列表加回条目。
 
 #### 辅助认证/网关客户端
 
@@ -729,4 +735,4 @@ npm run dist-cn             # 或 node scripts/dist-cn.js（npmmirror 镜像加�
 - [README.md](../README.md)（功能总览与用户指南）
 - [backend-node/README.md](../backend-node/README.md)（后端 API 表、AI 接入说明）
 - [CHANGELOG.md](../CHANGELOG.md)（版本演进脉络）
-- docs/ 下 `configuration.md`（AI 配置）、`deployment-guide.md`（模型部署）、`quickstart.md`（开发打包 Docker）
+- docs/ 下 `configuration.md`（AI 配置）、`quickstart.md`（开发打包 Docker）、`PROJECT_STRUCTURE.md`（目录结构）

@@ -14,24 +14,27 @@
 
 **[English](docs/en.md) | 简体中文 | [作者故事](docs/story.md)**
 
-[![GitHub](https://img.shields.io/badge/GitHub-xuanyustudio%2FLocalMiniDrama-181717?logo=github&style=flat-square)](https://github.com/xuanyustudio/LocalMiniDrama)
-[![Gitee](https://img.shields.io/badge/Gitee-bi__shang__a%2Flocalminidrama-C71D23?logo=gitee&style=flat-square)](https://gitee.com/bi_shang_a/localminidrama)
+[![Gitee](https://img.shields.io/badge/Gitee-liruiqing76%2FMiniDrama-C71D23?logo=gitee&style=flat-square)](https://gitee.com/liruiqing76/MiniDrama)
 
 </div>
 
 ---
 
-市面上 AI 短剧工具不少，但真正能**本地离线运行、开箱即用、素材不上云**的几乎没有。  
+市面上 AI 短剧工具不少，但真正能做到**完整本地部署、数据自控、开箱即用**的并不多。  
 本项目用纯 JavaScript 从零搭建，接入你自己的 AI API，打开即可生成完整 AI 短剧。
 
-> ✅ 无订阅费 · ✅ 数据本地存储 · ✅ 支持多家 AI 服务商 · ✅ 完全开源可二次开发
+> ✅ 无订阅费 · ✅ 项目数据本地存储 · ✅ 支持多家 AI 服务商 · ✅ 完全开源可二次开发
+
+> 📌 **关于数据流向**：项目工程、剧本、角色与分镜数据全部存储在本机 SQLite 与本地目录。
+> 图片/视频/文本生成需要调用你自行配置的云端 AI 服务（Agnes / 通义 / MiniMax 等），
+> 对应素材会发送至该服务商。若需完全离线，可接入本地 ComfyUI（见下文「本地部署」）。
 
 ---
 
 ## 📸 界面预览
 
 <div align="center">
-  <img src="项目截图/首页截图.png" alt="首页 · 项目列表" width="960"/><br/>
+  <img src="docs/reference/项目截图/首页截图.png" alt="首页 · 项目列表" width="960"/><br/>
   <sub>首页 · 项目卡片一览，亮色模式</sub>
 </div>
 
@@ -39,43 +42,32 @@
 
 <table>
   <tr>
-    <td align="center"><img src="项目截图/武侠.png" alt="剧集管理页" width="480"/><br/><sub>剧集管理 · 分集 + 资源库</sub></td>
-    <td align="center"><img src="项目截图/武侠分镜.png" alt="分镜编辑页" width="480"/><br/><sub>分镜制作 · 图片 + 视频一键生成</sub></td>
+    <td align="center"><img src="docs/reference/项目截图/武侠.png" alt="剧集管理页" width="480"/><br/><sub>剧集管理 · 分集 + 资源库</sub></td>
+    <td align="center"><img src="docs/reference/项目截图/武侠分镜.png" alt="分镜编辑页" width="480"/><br/><sub>分镜制作 · 图片 + 视频一键生成</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="项目截图/新版本4宫格分镜.png" alt="角色管理页" width="480"/><br/><sub>角色生成 · AI 自动提取并生成角色形象图</sub></td>
-    <td align="center"><img src="项目截图/专业分镜.png" alt="专业分镜参数" width="480"/><br/><sub>分镜制作 · 专业视频参数（景别 / 运镜 / 灯光 / 景深）</sub></td>
+    <td align="center"><img src="docs/reference/项目截图/新版本4宫格分镜.png" alt="角色管理页" width="480"/><br/><sub>角色生成 · AI 自动提取并生成角色形象图</sub></td>
+    <td align="center"><img src="docs/reference/项目截图/专业分镜.png" alt="专业分镜参数" width="480"/><br/><sub>分镜制作 · 专业视频参数（景别 / 运镜 / 灯光 / 景深）</sub></td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><img src="项目截图/本剧场景库.png" alt="本剧场景库" width="720"/><br/><sub>场景库 · 一键「加入本集」，复用已有场景素材</sub></td>
+    <td align="center" colspan="2"><img src="docs/reference/项目截图/本剧场景库.png" alt="本剧场景库" width="720"/><br/><sub>场景库 · 一键「加入本集」，复用已有场景素材</sub></td>
   </tr>
 </table>
 
 ---
 
-## 🎬 AI 生成实拍效果
+## 🎬 生成效果
 
-> 以下 3 段视频由**本软件自动工作流生成**，展示连续分镜下角色外貌一致性的保持效果。  
-> 三个分镜均来自同一剧集，主角形象、服装、整体风格全程稳定统一，充分验证本工具的分镜参考图传递机制。
+> 分镜连续性与角色外貌一致性是本工具的核心能力：同一剧集的多个分镜中，
+> 主角形象、服装、整体风格保持稳定统一，依托分镜参考图传递机制与角色锚点约束实现。
 
 <table>
   <tr>
-    <td align="center">
-      <video src="项目截图/1.mp4" controls width="300" style="border-radius:8px"></video><br/>
-      <sub>分镜 1 · 角色出场</sub>
-    </td>
-    <td align="center">
-      <video src="项目截图/2.mp4" controls width="300" style="border-radius:8px"></video><br/>
-      <sub>分镜 2 · 连续镜头，角色服装保持一致</sub>
-    </td>
-    <td align="center">
-      <video src="项目截图/3.mp4" controls width="300" style="border-radius:8px"></video><br/>
-      <sub>分镜 3 · 不同景别，人物外貌高度统一</sub>
-    </td>
+    <td align="center"><img src="docs/reference/项目截图/武侠分镜.png" alt="连续分镜示例" width="720"/><br/><sub>连续分镜 · 角色形象与服装跨镜保持一致</sub></td>
   </tr>
 </table>
 
-> 💡 **以上为演示素材**。当前版本视频生成聚焦三家主力模型：**通义万相 WAN 3.0**、**MiniMax Hailuo-03**、**Agnes Video 2.5**，覆盖文生视频、图生视频、首尾帧、参考图等全链路模式。
+> 💡 **当前版本视频生成聚焦三家主力模型**：**通义万相 WAN 3.0**、**MiniMax Hailuo-03**、**Agnes Video 2.5**，覆盖文生视频、图生视频、首尾帧、参考图等全链路模式。
 
 ---
 
@@ -121,7 +113,7 @@
 ### 🤖 AI 配置
 
 - 图片生成、视频生成、文本生成三类模型**独立配置**
-- 图片与视频生成分别独立配置；图片兼容 **Agnes AI**、**阿里云 DashScope**、**火山引擎 Volcengine** 等；视频支持 **WAN 3.0 / MiniMax Hailuo-03 / Agnes Video 2.5**
+- 图片兼容 **Agnes AI**、**阿里云 DashScope**、**火山引擎 Volcengine** 等；视频支持 **WAN 3.0 / MiniMax Hailuo-03 / Agnes Video 2.5**
 - 可视化管理，保存即生效，支持**一键测试连接**
 - 内置「一键配置通义」「一键配置火山」快捷入口，含 API Key 申请引导
 
@@ -158,17 +150,15 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/xuanyustudio/LocalMiniDrama.git
-# 或 Gitee：git clone https://gitee.com/bi_shang_a/localminidrama.git
-cd LocalMiniDrama
+git clone https://gitee.com/liruiqing76/MiniDrama.git
+cd MiniDrama
 
 # 2. 启动后端（默认端口 5679）
 cd backend-node
 npm install
-cp configs/config.example.yaml configs/config.yaml
-# 编辑 config.yaml，填入 AI API 地址与密钥
+# configs/config.yaml 已随仓库提供，按需修改其中的 AI API 地址与密钥
 npm run migrate   # 首次运行：初始化数据库
-npm start
+npm run dev       # 开发模式（支持热重载）
 
 # 3. 启动前端（新开终端，默认端口 3013）
 cd frontweb
@@ -240,15 +230,19 @@ LocalMiniDrama/
 │   ├── src/
 │   │   ├── config/        # 配置加载（YAML）
 │   │   ├── db/            # SQLite 连接与迁移
-│   │   ├── services/      # 业务逻辑（生成服务、导出导入等）
-│   │   └── routes/        # REST API 路由
-│   └── configs/           # config.yaml 配置文件
+│   │   ├── services/      # 业务逻辑（生成服务、AI 客户端、导出导入等）
+│   │   ├── routes/        # REST API 路由
+│   │   ├── templates/     # 题材模板（YAML，9 个题材）
+│   │   └── utils/         # 工具（含 Agnes 限流器）
+│   ├── skills/            # 提示词模板（外置 Markdown，可 UI 覆盖）
+│   └── configs/           # config.yaml、ComfyUI workflow
 ├── frontweb/              # Vue 3 前端（Vite + Element Plus）
 │   └── src/
 │       ├── views/
 │       │   ├── FilmList.vue      # 首页：项目列表、素材库
 │       │   ├── DramaDetail.vue   # 剧集管理：信息/分集/资源库
 │       │   └── FilmCreate.vue    # 制作页：剧本/角色/分镜/生成
+│       ├── components/           # 组件（含 AIConfigContent.vue — AI 配置）
 │       ├── api/                  # 后端 API 封装
 │       ├── stores/               # Pinia 状态管理
 │       └── styles/               # 全局样式（主题变量）
@@ -256,6 +250,8 @@ LocalMiniDrama/
 ├── docs/                  # 文档目录
 └── README.md
 ```
+
+📖 详细目录结构见 → **[项目结构说明](docs/PROJECT_STRUCTURE.md)**
 
 **技术栈：**
 
@@ -272,15 +268,14 @@ LocalMiniDrama/
 
 查看完整更新记录 → **[CHANGELOG](docs/changelog.md)**
 
-**最新版 v1.2.7 亮点：**
+**最新版亮点：**
 - 🆕 **尾帧衔接**：一键提取本镜视频末帧设为下一镜首帧（服务端 ffmpeg），提升镜间连贯性
 - 🆕 **导出分镜表**：当前集分镜导出为 HTML 表格，含对白、解说、全能片段与各提示词列，便于审阅协作
 - 🆕 **统一生成任务进度**：角色 / 场景 / 道具 / 分镜图 / 视频等异步任务共用任务 Store，支持刷新后恢复轮询
-- 🔧 **生视频模式校验**：全能模式检测 `kling_omni` 或 `volcengine_omni`+Seedance 2.0，不匹配可提示并降级；传统模式无分镜图时阻止提交并提示先出图
-- 🔧 **首帧尾帧分字段绑定**：尾帧不再污染分镜主图；Seedance 2.0 角色素材在主图变更后自动标为需刷新
-
-**v1.2.6 / v1.2.5 亮点：**
-- 🆕 **Seedance 2.0 + 分镜全能模式**：`volcengine_omni` / `kling_omni`、多图 `@图片N`、`universal_segment_text`（详见 [CHANGELOG](CHANGELOG.md)）
+- 🆕 **Agnes AI 全链路接入**：文本 / 图片 / 视频均按官方规范接入，含官方 RPM 限流、Data URI 参考图、`<Picture N>` 语义引用
+- 🆕 **剧本创作体系升级**：单集六拍结构、角色/场景一致性锚点、分镜可拍性铁律，提示词全部外置为 `skills/*.md`
+- 🔧 **视频模型收敛**：聚焦 WAN 3.0 / MiniMax Hailuo-03 / Agnes Video 2.5 三家主力
+- 🔧 **首帧尾帧分字段绑定**：尾帧不再污染分镜主图；角色素材在主图变更后自动标为需刷新
 
 **v1.2.3 亮点：**
 - 🆕 **分镜解说旁白（narration）**：分镜生成可选「生成分镜时生成解说旁白」，AI 为每镜输出独立 `narration` 字段（与角色对白 `dialogue` 分离），便于后期 TTS 与成片旁轨
@@ -306,7 +301,7 @@ LocalMiniDrama/
 - 🔧 **图片下载稳定性**：打包 exe 环境下的图片下载从 `fetch` 改为 Node.js `http/https` 模块，支持重试与超时，解决 `fetch failed` 问题
 
 **v1.1.14 亮点：**
-- 🆕 **官方仓库链接**：README 及后端文档新增 [GitHub](https://github.com/xuanyustudio/LocalMiniDrama) 与 [Gitee](https://gitee.com/bi_shang_a/localminidrama) 官方仓库徽章，方便提交 Issue 或 PR
+- 🆕 **官方仓库链接**：README 及后端文档新增仓库徽章，方便提交 Issue 或 PR
 
 **v1.1.13 亮点：**
 - 🆕 **分镜图相机角度视角修正**：分镜 `angle` 字段翻译为相机透视描述注入提示词，使 AI 生成画面视角与镜头设定一致
@@ -341,7 +336,7 @@ LocalMiniDrama/
 | **[openoii / oiioii](https://github.com/oiioii)** | 开源，轻量化 AI 可视化创作，本项目在提示词设计上有所参考 |
 | **ChatFire** | AI 驱动剧情生成/对话体短剧，启发了本项目后端设计 |
 
-本项目更聚焦于**本地离线、界面友好、方便二次开发**，欢迎 [Issue](../../issues) 推荐更多工具。
+本项目更聚焦于**本地工程管理、界面友好、方便二次开发**，欢迎推荐更多工具。
 
 ---
 
@@ -382,11 +377,11 @@ LocalMiniDrama/
 <table>
   <tr>
     <td align="center">
-      <img src="项目截图/weixinpay.jpg" alt="微信赞赏码" width="200"/><br/>
+      <img src="docs/reference/项目截图/weixinpay.jpg" alt="微信赞赏码" width="200"/><br/>
       <sub><b>微信支付</b> · 扫码赞赏</sub>
     </td>
     <td align="center">
-      <img src="项目截图/ali.jpg" alt="支付宝收款码" width="200"/><br/>
+      <img src="docs/reference/项目截图/ali.jpg" alt="支付宝收款码" width="200"/><br/>
       <sub><b>支付宝</b> · 扫码赞赏</sub>
     </td>
   </tr>
@@ -407,11 +402,11 @@ LocalMiniDrama/
 <table>
   <tr>
     <td align="center">
-      <img src="项目截图/wx.jpg" alt="作者微信" width="180"/><br/>
+      <img src="docs/reference/项目截图/wx.jpg" alt="作者微信" width="180"/><br/>
       <sub>加作者微信</sub>
     </td>
     <td align="center">
-      <img src="项目截图/微信群.jpg" alt="微信交流群" width="180"/><br/>
+      <img src="docs/reference/项目截图/微信群.jpg" alt="微信交流群" width="180"/><br/>
       <sub>扫码进群（二维码定期更新）</sub>
     </td>
   </tr>

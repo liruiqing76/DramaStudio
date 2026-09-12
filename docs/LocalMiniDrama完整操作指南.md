@@ -59,8 +59,8 @@ npm --version
 #### 2. 克隆项目
 
 ```bash
-git clone https://github.com/xuanyustudio/LocalMiniDrama.git
-cd LocalMiniDrama
+git clone https://gitee.com/liruiqing76/MiniDrama.git
+cd MiniDrama
 ```
 
 #### 3. 安装后端依赖
@@ -665,9 +665,8 @@ npm run dev
 
 ### 官方资源
 
-- **GitHub 仓库**：https://github.com/xuanyustudio/LocalMiniDrama
-- **文档**：https://github.com/xuanyustudio/LocalMiniDrama/docs
-- **Issue 反馈**：https://github.com/xuanyustudio/LocalMiniDrama/issues
+- **Gitee 仓库**：https://gitee.com/liruiqing76/MiniDrama
+- **Issue 反馈**：https://gitee.com/liruiqing76/MiniDrama/issues
 
 ### 社区支持
 

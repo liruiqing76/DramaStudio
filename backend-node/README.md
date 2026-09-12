@@ -5,10 +5,9 @@
 → [项目主页](../README.md) | [快速开始](../docs/quickstart.md) | [AI 配置](../docs/configuration.md) | [版本历史](../docs/changelog.md) | [作者故事](../docs/story.md) | [English](../docs/en.md)
 
 **官方仓库：**
-[![GitHub](https://img.shields.io/badge/GitHub-xuanyustudio%2FLocalMiniDrama-181717?logo=github)](https://github.com/xuanyustudio/LocalMiniDrama)
-[![Gitee](https://img.shields.io/badge/Gitee-bi__shang__a%2Flocalminidrama-C71D23?logo=gitee)](https://gitee.com/bi_shang_a/localminidrama)
+[![Gitee](https://img.shields.io/badge/Gitee-liruiqing76%2FMiniDrama-C71D23?logo=gitee)](https://gitee.com/liruiqing76/MiniDrama)
 
-> 遇到问题或有功能建议，欢迎在 [GitHub Issues](https://github.com/xuanyustudio/LocalMiniDrama/issues) 或 [Gitee Issues](https://gitee.com/bi_shang_a/localminidrama/issues) 提交反馈。
+> 遇到问题或有功能建议，欢迎在 [Gitee Issues](https://gitee.com/liruiqing76/MiniDrama/issues) 提交反馈。
 
 > **本包版本：** `1.2.7`（与仓库根目录 [CHANGELOG](../CHANGELOG.md)、前端与桌面 `package.json` 对齐）
 
@@ -45,11 +44,7 @@ cd backend-node
 # 安装依赖
 npm install
 
-# 复制配置文件
-cp configs/config.example.yaml configs/config.yaml
-# Windows: copy configs\config.example.yaml configs\config.yaml
-
-# 编辑 config.yaml，填入 AI API 配置（也可通过前端「AI 配置」页面管理）
+# 编辑 config.yaml（已随仓库提供），填入 AI API 配置（也可通过前端「AI 配置」页面管理）
 
 # 首次运行：初始化数据库表
 npm run migrate
@@ -73,8 +68,7 @@ Server started on port 5679
 ```
 backend-node/
 ├── configs/
-│   ├── config.example.yaml     # 配置模板（提交到 Git）
-│   └── config.yaml             # 实际配置（不提交，自行创建）
+│   └── config.yaml             # 主配置（已随仓库提供，按需修改）
 ├── data/
 │   ├── drama_generator.db      # SQLite 数据库
 │   └── storage/                # 生成的图片/视频本地文件
@@ -157,7 +151,7 @@ style:
 
 ## 各大平台中转站示例配置
 
-仓库根目录（与 `backend-node` 同级）下的 [`各大平台中转站配置/`](https://github.com/xuanyustudio/LocalMiniDrama/tree/main/%E5%90%84%E5%A4%A7%E5%B9%B3%E5%8F%B0%E4%B8%AD%E8%BD%AC%E7%AB%99%E9%85%8D%E7%BD%AE) 提供多家常见中转站的 **完整 JSON 示例**，可直接对照导入前端「AI 配置」，再改为自己的 Key 与地址。
+[`docs/reference/各大平台中转站配置/`](../docs/reference/各大平台中转站配置/) 提供多家常见中转站的 **完整 JSON 示例**，可直接对照导入前端「AI 配置」，再改为自己的 Key 与地址。
 
 | 文件 | 说明 |
 |------|------|
@@ -169,10 +163,10 @@ style:
 
 **示意图（与 JSON 互补）：**
 
-- [官方即梦 2.0 配置](https://github.com/xuanyustudio/LocalMiniDrama/blob/main/%E5%90%84%E5%A4%A7%E5%B9%B3%E5%8F%B0%E4%B8%AD%E8%BD%AC%E7%AB%99%E9%85%8D%E7%BD%AE/%E5%AE%98%E6%96%B9%E5%8D%B3%E6%A2%A62.0%E9%85%8D%E7%BD%AE.png)
-- [本地反向代理即梦 Free API 配置](https://github.com/xuanyustudio/LocalMiniDrama/blob/main/%E5%90%84%E5%A4%A7%E5%B9%B3%E5%8F%B0%E4%B8%AD%E8%BD%AC%E7%AB%99%E9%85%8D%E7%BD%AE/%E8%B0%83%E7%94%A8%E6%9C%AC%E5%9C%B0%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E5%8D%B3%E6%A2%A6freeapi%E7%9A%84%E9%85%8D%E7%BD%AE.png)
+- [官方即梦 2.0 配置](../docs/reference/各大平台中转站配置/官方即梦2.0配置.png)
+- [本地反向代理即梦 Free API 配置](../docs/reference/各大平台中转站配置/调用本地反向代理即梦freeapi的配置.png)
 
-若中转商控制台中的商品名（如「即梦 2.0」）与示例里的 **模型 ID**（如 `doubao-seedream-4-0-250828`）表述不一致，以对方实际开放的模型 ID 为准，并在本系统中与 JSON 保持一致。更多面向最终用户的说明见仓库根目录 [项目主页 `index.html`](../index.html) 中的「AI 与各大平台中转站」区块（发布页展示用）。
+若中转商控制台中的商品名（如「即梦 2.0」）与示例里的 **模型 ID**（如 `doubao-seedream-4-0-250828`）表述不一致，以对方实际开放的模型 ID 为准，并在本系统中与 JSON 保持一致。
 
 ---
 
@@ -346,27 +340,27 @@ style:
 2. `videoService.js` 异步处理：调用视频 API → 轮询任务状态 → 下载到本地
 3. 前端轮询 `GET /videos/:id` 直到 status=completed
 
-**视频参数（Volcengine 经典 Seedance 单链路，示例）：**
-```json
-{
-  "model": "doubao-seedance-1-0-pro-250528",
-  "content": [{ "type": "text", "text": "..." }],
-  "ratio": "16:9",
-  "duration": 5,
-  "resolution": "720p",
-  "seed": null,
-  "camera_fixed": false,
-  "watermark": false
-}
-```
+**视频模型（三家主力）：**
 
-**火山方舟 Seedance 2.0 · 全能 / 多参考图（`volcengine_omni`）：**
+| 服务商 | 模型 ID | 说明 |
+|--------|---------|------|
+| 阿里云 DashScope | `wan3.0-t2v` / `wan3.0-i2v` / `wan3.0-kf2v` / `wan3.0-r2v` | 文生视频 / 图生视频 / 首尾帧 / 参考图 |
+| MiniMax | `MiniMax-Hailuo-03` / `MiniMax-Hailuo-03-Fast` | 图生视频 |
+| Agnes AI | `agnes-video-2.5-flash` / `agnes-video-2.5` | 文生视频 / 关键帧（首尾帧）/ 参考图 |
 
-- 在前端「AI 配置 → 视频生成」选择接口规范 **`volcengine_omni`**，厂商仍为火山引擎；**Base URL** 一般为 `https://ark.cn-beijing.volces.com/api/v3`；**模型**填控制台接入点（如 `doubao-seedance-2-0-260128`、`doubao-seedance-2-0-fast-260128`）。
-- 与制作页分镜 **「全能模式」** 配合：首条为文本提示，其余参考图为场景/角色/道具/分镜主图等，每张 **`role: reference_image`**；方舟侧最多取 **9** 张。
-- **Seedance 2.x** 请求时长会在后端吸附到 **4–15 秒**；默认走 `POST /v1/videos/generations`（可用配置 **Endpoint** 覆盖）。实现见 `videoClient.js`（`volcengine_omni` 分支）。
+**Agnes 视频模式约束（重要）：**
 
-**可灵 Omni（`kling_omni`）** 同样支持分镜全能模式的多图参考与片段描述-only 提交逻辑，配置方式见前端 AI 配置页说明。
+- `text` 模式：仅文本，不传任何素材
+- `keyframe` 模式：需 `first_frame` 或 `last_frame`，**禁止** `images`/`audios`/`videos`
+- `reference` 模式：需 `images`（≤5）或 `audios`（≤3），**禁止** `first_frame`/`last_frame`
+
+首尾帧素材与参考素材**不可同时使用**（同时传会返回 HTTP 400）。
+`reference` 模式建议在 prompt 中用 `<Picture N>` 标注每张参考图的用途，编号从 1 开始。
+实现见 `videoClient.js`（`buildAgnesPictureReferencePrefix`）。
+
+> 其他厂商（kling / vidu / volcengine-seedance / gemini-veo / sora / jimeng / comfyui 等）
+> 的适配器代码仍保留在 `videoClient.js`，但已从 AI 配置页收敛下线。
+> 如需恢复，在 `frontweb/src/components/AIConfigContent.vue` 的 `providerConfigs.video` 中加回条目即可。
 
 ### 提示词国际化
 
@@ -382,15 +376,15 @@ style:
 2. 实现对应的 API 调用逻辑
 3. 在前端「AI 配置」页面新增服务商选项（`AIConfigContent.vue`）
 
-### Jimeng AI API（自建即梦 OpenAI 兼容服务）
+### Jimeng AI API（自建 OpenAI 兼容服务）
 
-若使用「视频 → 厂商 **Jimeng AI API（自建即梦免费 API）**」：
+> ⚠️ 该厂商已从 AI 配置页收敛下线，以下说明仅供需要自行恢复时参考。
 
-1. 自行克隆并启动第三方即梦逆向/兼容服务项目（如 `jimeng-free-api-all`），按对方 README 安装依赖与 Chromium，默认监听端口以对方文档为准（常见 `8000`）。
-2. 在本系统 AI 配置中填写 **Base URL**（如 `http://127.0.0.1:8000`）、**API Key** 填即梦 **Session**（多个用英文逗号分隔）。
-3. 后端会请求对方 `POST /v1/videos/generations`（可用配置项 **Endpoint** 覆盖路径），Seedance 多图场景需分镜带参考图；返回为同步 `data[0].url`，无需轮询。
+若使用「视频 → 厂商 **Jimeng AI API（自建免费 API）**」：
 
-字段级对照可参考仓库 [`各大平台中转站配置/调用本地反向代理即梦freeapi的配置.png`](https://github.com/xuanyustudio/LocalMiniDrama/blob/main/%E5%90%84%E5%A4%A7%E5%B9%B3%E5%8F%B0%E4%B8%AD%E8%BD%AC%E7%AB%99%E9%85%8D%E7%BD%AE/%E8%B0%83%E7%94%A8%E6%9C%AC%E5%9C%B0%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E5%8D%B3%E6%A2%A6freeapi%E7%9A%84%E9%85%8D%E7%BD%AE.png)。该路径为 **OpenAI 兼容的本地即梦代理（视频为主）**，与上文「即梦（Seedream）Volcengine 图生图与文生图」所描述的 **`volcengine` 直连中转图 API** 不是同一套协议，请按实际接入分别配置、勿混用字段。
+1. 自行克隆并启动第三方兼容服务项目（如 `jimeng-free-api-all`），按对方 README 安装依赖与 Chromium，默认监听端口以对方文档为准（常见 `8000`）。
+2. 在本系统 AI 配置中填写 **Base URL**（如 `http://127.0.0.1:8000`）、**API Key** 填对方所需的 Session（多个用英文逗号分隔）。
+3. 后端会请求对方 `POST /v1/videos/generations`（可用配置项 **Endpoint** 覆盖路径）；返回为同步 `data[0].url`，无需轮询。
 
 ### 添加新的数据库字段
 
