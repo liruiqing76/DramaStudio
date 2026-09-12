@@ -52,6 +52,48 @@
 
 ---
 
+## 视频模型（三家主力）
+
+当前版本视频生成聚焦以下三家，配置时请从「AI 配置 → 视频生成」中选择对应服务商与模型。
+
+| 服务商 | 模型 ID | 模式说明 |
+|--------|---------|----------|
+| 阿里云 DashScope（通义万相） | `wan3.0-t2v` | 文生视频 |
+| | `wan3.0-i2v` | 图生视频（单图驱动） |
+| | `wan3.0-kf2v` | 首尾帧生视频 |
+| | `wan3.0-r2v` | 参考图生视频 |
+| MiniMax（海螺） | `MiniMax-Hailuo-03` / `MiniMax-Hailuo-03-Fast` | 图生视频 |
+| Agnes AI | `agnes-video-2.5-flash` / `agnes-video-2.5` | 文生视频 / 关键帧（首尾帧）/ 参考图 |
+
+> 其他厂商的适配器代码仍保留在 `backend-node/src/services/videoClient.js`，
+> 如需恢复只需在 `frontweb/src/components/AIConfigContent.vue` 的
+> `providerConfigs.video` 中加回条目。
+
+---
+
+## 一致性校验
+
+生成前可用只读体检发现潜在的跨集一致性问题（不修改任何数据）：
+
+```
+GET /api/v1/dramas/:id/consistency
+```
+
+返回 `{ ok, findings, counts }`，`findings` 为问题清单：
+
+| code | severity | 含义 |
+|------|----------|------|
+| `char_name_empty` | warning | 存在未命名角色 |
+| `char_dup_name` | warning | 同剧内角色重名，跨集极易出现形象分裂 |
+| `char_no_anchor` | warning | 角色缺少身份锚点 / 外观描述，跨集易形象漂移 |
+| `scene_no_location` | info | 场景缺少 `location` |
+| `scene_cross_episode` | info | 同一地点跨多集出现，各集独立生成场景图需注意视觉一致 |
+| `scene_dup_in_episode` | info | 同一集内同地点且同时间重复，可考虑复用同一场景素材 |
+
+`ok` 为 `true` 表示无 warning 级问题。
+
+---
+
 ## 阿里云 DashScope（通义）
 
 ### 申请 API Key

@@ -3,8 +3,53 @@
 所有版本的重要改动记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
 **官方仓库：**
-[![GitHub](https://img.shields.io/badge/GitHub-xuanyustudio%2FLocalMiniDrama-181717?logo=github)](https://github.com/xuanyustudio/LocalMiniDrama)
-[![Gitee](https://img.shields.io/badge/Gitee-bi__shang__a%2Flocalminidrama-C71D23?logo=gitee)](https://gitee.com/bi_shang_a/localminidrama)
+[![Gitee](https://img.shields.io/badge/Gitee-liruiqing76%2FMiniDrama-C71D23?logo=gitee)](https://gitee.com/liruiqing76/MiniDrama)
+
+---
+
+## [未发布] - 2026-09-12
+
+### 新增
+
+- **跨集一致性校验**：新增 `consistencyService.checkDramaConsistency(db, dramaId)`
+  与 `GET /api/v1/dramas/:id/consistency`。只读静态体检，检查角色重名、
+  角色缺少身份锚点、场景缺 `location`、同地点跨集重复等，返回 `{ ok, findings, counts }`
+- **一键流水线取消**：制作页流水线新增「取消」按钮，置位后轮询与并发任务尽快退出，
+  由 `checkPause()` 抛出哨兵错误中断整条链路（哨兵不写入错误日志）
+- **分镜就绪度检查**：`storyboardMissingAssets()` 返回缺失素材清单（截图 / 视频），供合成前告警
+
+### 变更
+
+- **视频模型收敛为三家**：AI 配置页仅保留 **通义万相 WAN 3.0**（`wan3.0-t2v/i2v/kf2v/r2v`）、
+  **MiniMax Hailuo-03**（`MiniMax-Hailuo-03/-Fast`）、**Agnes Video 2.5**
+  （`agnes-video-2.5-flash/2.5`）。其余厂商适配器代码保留在 `videoClient.js`，
+  恢复只需在 `AIConfigContent.vue` 的 `providerConfigs.video` 加回条目
+- **Agnes AI 全链路按官方规范接入**：文本 / 图片 / 视频；新增 `utils/agnesRateLimiter.js`
+  按官方 RPM 全局限流；图片参考图走 Data URI Base64（`extra_body.image`）；
+  视频 `reference` 模式自动拼 `<Picture N>` 语义前缀；尾帧有效性阈值对齐官方 0.5
+- **剧本创作体系升级**：单集六拍结构（钩子 / 冲突起 / 升级 / 反转 / 高潮 / 悬念钩）、
+  角色六维身份锚点、场景固定锚点、分镜可拍性铁律；提示词全部外置为 `skills/*.md`
+- **题材模板真正接入主流程**：新增 `storyTemplateMatcher`，`generateStory` 匹配成功后
+  将角色原型 / 经典套路 / 三幕结构追加到 system prompt
+
+### 移除
+
+- **AI Agent 编排 stub**：`routes/agent.js`、`services/agentScheduler.js`、
+  `services/serviceRegistry.js` 及 7 个 `/dramas/:id/pipeline/*` 端点。
+  前端一键流水线实为纯前端编排，不依赖这些端点
+- **失效文档与脚本**：`docs/` 下 AutoDL / ComfyUI / Wan2.1 / LTX 自部署文档、
+  `scripts/` 目录、FLUX.2 下载脚本、`CLAUDE.md` 及 GitHub 社区模板文件
+
+### 修复
+
+- **一致性校验跨集误报**：`scene_cross_episode` 原只看地点出现次数，导致同集内也报「跨集」；
+  改为真正跨集才报，同集重复且时间相同报 `scene_dup_in_episode`
+- **取消信号未处理**：`pollTaskWithPause` 返回的 `canceled` 此前 18 处调用点均未判断，
+  补全后取消响应由「下一任务生效」提前为「当前步骤立即返回」
+- **参考图与首尾帧互斥**：Agnes `reference` 模式禁传首尾帧（官方文档硬约束），
+  原实现同时发送导致成批 HTTP 400；现按模式正确取舍
+- **图床依赖**：`configs/config.yaml` 的 `image_proxy.use_for_video` 由 `true` 改为 `false`，
+  改用官方支持的 Data URI Base64 直传，移除第三方图床硬依赖
 
 ---
 
