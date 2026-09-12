@@ -4,49 +4,61 @@
 
 ```bash
 # 在 backend-node 目录下
-npm test              # 跑全部测试
-npm run test:unit     # 仅单元测试
-npm run test:integration  # 仅集成测试
-npm run test:coverage # 带覆盖率
+npm test                # 跑全部测试（test/ 下 *.test.js 与 *.spec.js）
+npm run test:unit       # 同上（当前未分子目录，等价）
+npm run test:integration# 仅端到向测试（当前为 merge_e2e.test.js）
+npm run test:coverage   # 带覆盖率
 ```
+
+> ⚠️ **历史坑**：早期脚本指向 `tests/`（复数），但该目录从未建立，
+> 导致 `npm test` 跑 **0 个用例却返回 exit=0**（假绿）。现已修正为 `test/`。
 
 ## 测试结构
 
+实际目录为 `test/`（单数，非 `tests/`），当前 9 个测试文件、35 个用例：
+
 ```
-tests/
-├── helpers/
-│   └── testDb.js          # 内存 SQLite + 迁移容错辅助
-├── unit/                  # 单元测试（纯函数，无 IO 依赖）
-│   ├── safeJson.test.js          # JSON 解析修复链（33 用例）
-│   ├── storageLayout.test.js     # 存储路径生成（17 用例）
-│   ├── videoMerge.test.js        # 视频合成 CRUD（4 用例）
-│   ├── promptI18n.test.js        # 双语提示词（6 用例）
-│   ├── mediaAspectRatioSpec.test.js  # 画幅比例归一化（5 用例）
-│   └── angleService.test.js      # 96种视角组合（18 用例）
-├── integration/           # 集成测试（HTTP + DB）
-│   └── security.spec.js          # API 安全基线（6 用例）
-└── e2e/                   # E2E 测试（待补）
+backend-node/test/
+├── agnesModelArray.test.js      # Agnes 模型数组解析（config.model 非字符串的修复）
+├── agnesRateLimiter.test.js     # Agnes 官方 RPM 限流、档位归一化、429 冷却
+├── consistency.test.js          # 跨集一致性校验
+├── deepseekConfig.test.js       # DeepSeek 配置
+├── jimengMaterialHub.test.js    # 即梦素材 Hub
+├── libraryDedup.test.js         # 素材库去重
+├── merge_e2e.test.js            # 视频合成端到端
+├── rateLimitRetry.test.js       # 限流重试
+└── vlmQualityService.test.js    # VLM 质量评估
 ```
+
+前端另有 `frontweb/test/modelSelection.test.js`。
 
 ## 测试框架
 
-- **Node.js 原生 `node:test`** — 零依赖，Node 18+ 内置
-- **supertest** — HTTP 接口测试（devDependency）
-- **better-sqlite3** — 内存数据库，与生产同引擎
+- **Node.js 原生 `node:test`** — 零依赖
+- **better-sqlite3** — 内存数据库（`:memory:`），与生产同引擎
+- 断言使用 Node 内置 `node:assert`
 
-## 已知 Bug（测试已标记 TODO）
+## 运行要求（重要）
 
-| # | 文件 | Bug 描述 | 测试用例 |
-|---|------|---------|---------|
-| 1 | `src/utils/safeJson.js` | `repairTruncatedJsonArray` 嵌套数组截断：内层 `]` 误计 depth | `repairTruncatedJsonArray: 嵌套数组截断` |
-| 2 | `src/app.js` | JSON body 限制 10MB 但错误提示写 16MB | `P0-Security: JSON body 限制` |
-| 3 | `src/services/videoMergeService.js` | API 签名不统一（list 无 log 参数） | `videoMergeService: create + getById` |
+> ⚠️ **必须使用系统 Node v24.14.0**（`D:/Program Files/nodejs/node.exe`）。
+> 托管 Node 22 与 better-sqlite3 的 ABI 不匹配，会产生**假失败**。
 
-## 覆盖率目标
+```bash
+# 推荐用系统 Node 显式执行
+"D:/Program Files/nodejs/node.exe" --test test/*.test.js
+```
+
+## 编写约定
+
+- 数据库相关测试用 `:memory:` 建库，自建最小表结构（参考 `consistency.test.js`）
+- 不依赖外部 API Key：所有 AI 调用在测试中应被 mock 或仅测纯函数
+- 文件名以 `.test.js`（单元）或 `*_e2e.test.js`（端到端）结尾
+
+## 覆盖率现状
 
 | 层级 | 目标 | 当前 |
 |------|:----:|:----:|
-| 纯函数 utils | ≥ 95% | safeJson ✅、mediaAspectRatioSpec ✅、angleService ✅ |
-| service 层 | ≥ 80% | storageLayout ✅、videoMerge 部分 |
+| utils 纯函数 | ≥ 95% | agnesRateLimiter ✅ |
+| service 层 | ≥ 80% | consistency ✅、vlmQuality ✅ |
 | routes 层 | ≥ 70% | 待补 |
-| E2E | 主链路 3 场景 | 待补 |
+| E2E | 主链路 3 场景 | merge_e2e 部分 |

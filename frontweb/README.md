@@ -1,8 +1,8 @@
-# web2 - 单页 AI 视频生成
+# LocalMiniDrama 前端（web2）
 
-与现有 `web` 并列的前端项目，实现**单页**从故事到成片的完整流程，对接现有 Node 后端 `backend-node`。
+本地短剧助手的**单页**前端，实现从故事到成片的完整流程，对接 Node 后端 `backend-node`。
 
-**包版本：** `1.2.7`（与仓库根目录 [CHANGELOG](../CHANGELOG.md) 一致）
+**包名：** `LocalMiniDrama-film` · **版本：** `1.2.7`（与仓库根目录 [CHANGELOG](../CHANGELOG.md) 一致）
 
 ## 功能流程
 
@@ -14,6 +14,17 @@
 6. **分镜生成**：根据当前集生成分镜
 7. **视频配置**：分辨率、配乐、音效、画质、字幕、水印；**AI 模型配置**（图片生成模型、视频生成模型）
 8. **生成视频**：提交合成任务
+9. **尾帧衔接**：提取本镜视频末帧设为下一镜首帧，提升镜间连贯
+10. **导出分镜表**：导出 HTML 表格，含对白、解说、全能片段与提示词
+
+### 生成能力
+
+- **一键流水线**：角色 → 场景 → 道具 → 分镜图 → 视频 → 合成，全程自动；支持暂停 / 取消
+- **就绪度检查**：合成前列出各分镜缺失素材（截图 / 视频）
+- **跨集一致性校验**：`GET /dramas/:id/consistency`，检查角色重名、缺身份锚点、场景跨集重复
+
+> 视频模型当前聚焦三家：WAN 3.0 / MiniMax Hailuo-03 / Agnes Video 2.5，
+> 详见 [AI 配置指南](../docs/configuration.md)。
 
 ## 运行
 
@@ -29,6 +40,11 @@ npm run build
 ```
 
 请先启动 `backend-node`（如 `http://localhost:5679`），并确保 `vite.config.js` 中 proxy 的 target 与后端一致。
+
+```bash
+# 测试（Node 原生 test runner）
+npm test
+```
 
 ## 技术栈
 

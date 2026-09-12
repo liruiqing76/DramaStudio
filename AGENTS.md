@@ -19,11 +19,18 @@ Frontend proxies `/api` and `/static` to backend via Vite config.
 
 ```bash
 # Backend tests (Node.js built-in test runner)
-cd backend-node && node --test test/*.test.js
+cd backend-node && npm test        # 35 用例
 
 # Frontend tests (ESM, Node.js built-in test runner)
-cd frontweb && node --test test/*.test.js
+cd frontweb && npm test
 ```
+
+> ⚠️ **Node 版本要求**：后端测试必须使用**系统 Node v24.14.0**
+> （`D:/Program Files/nodejs/node.exe`）。托管 Node 22 与 `better-sqlite3`
+> ABI 不匹配，会产生**假失败**。
+
+> 📌 测试目录是 `test/`（单数）。历史上 `package.json` 曾指向 `tests/`（不存在），
+> 导致 `npm test` 跑 0 个用例却 exit=0 —— 已修正，勿改回。
 
 No ESLint or other lint tool is configured in this codebase.
 
