@@ -23,7 +23,6 @@ const promptOverridesRoutes = require('./promptOverrides');
 const sceneModelMapRoutes = require('./sceneModelMap');
 const subtitleRoutes = require('./subtitles');
 const outfitRoutes = require('./outfits');
-const agentRoutes = require('./agent');
 const templateRoutes = require('./templates');
 const { costRoutes: costFn } = require('./cost');
 const systemRoutes = require('./system');
@@ -393,22 +392,23 @@ const templates = templateRoutes.routes(db, cfg, log);
   r.post('/subtitles/export', subtitles.exportSrt);
   r.get('/subtitles/file', subtitles.file);
 
-  // ---------- Week 3-4: AI Agent 工作流 ----------
-  const agent = agentRoutes(db, cfg, log);
-  r.post('/dramas/:id/pipeline/start', agent.startPipeline);
-  r.get('/dramas/:id/pipeline/:pid/status', agent.getStatus);
-  r.post('/dramas/:id/pipeline/:pid/pause', agent.pausePipeline);
-  r.post('/dramas/:id/pipeline/:pid/resume', agent.resumePipeline);
-  r.post('/dramas/:id/pipeline/:pid/steps/:sid/retry', agent.retryStep);
-  r.post('/dramas/:id/pipeline/:pid/steps/:sid/skip', agent.skipStep);
-  r.get('/dramas/:id/pipelines', agent.listPipelines);
-
   // ---------- cost (成本追踪) ----------
     const cost = costFn(db, log);
     r.get('/cost/episode/:episode_id', cost.episodeCost);
     r.get('/cost/drama/:drama_id', cost.dramaCost);
     r.get('/cost/summary', cost.summary);
     r.get('/cost/recent', cost.recent);
+
+  // ---------- 全剧/跨集一致性校验 ----------
+    const { checkDramaConsistency } = require('../services/consistencyService');
+    r.get('/dramas/:id/consistency', (req, res) => {
+      try {
+        response.success(res, checkDramaConsistency(db, Number(req.params.id)));
+      } catch (err) {
+        log.error('consistency', { error: err.message });
+        response.internalError(res, err.message);
+      }
+    });
 
   // ---------- Week 8: 运维守护 + 宫格图 ----------
   r.get('/system/health', system.getHealth);

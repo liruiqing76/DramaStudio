@@ -388,6 +388,7 @@
           <template v-if="pipelineRunning">
             <el-button v-if="!pipelinePaused" type="warning" @click="pipelinePaused = true">{{ $t('t083') }}</el-button>
             <el-button v-else type="success" @click="onPipelineResume">{{ $t('t084') }}</el-button>
+            <el-button type="danger" @click="requestPipelineCancel">{{ $t('t304') }}</el-button>
           </template>
         </div>
         <div v-if="pipelineRunning || pipelineErrorLog.length > 0" class="pipeline-status">
@@ -2683,6 +2684,8 @@ const videoErrorMsg = ref('')
 // 一键全流程流水线
 const pipelineRunning = ref(false)
 const pipelinePaused = ref(false)
+const pipelineCancelRequested = ref(false)
+const PIPELINE_CANCEL_SENTINEL = '__PIPELINE_CANCELED__'
 const pipelineErrorLog = ref([])
 const pipelineCurrentStep = ref('')
 const pipelineStepIndex = ref(0)    // 当前步骤序号（1-based）
@@ -2719,6 +2722,7 @@ async function runConcurrently(items, concurrency, fn, options = {}) {
 
   async function worker() {
     while (index < items.length) {
+      if (pipelineCancelRequested.value) return
       const i = index++
       const item = items[i]
       const label = getLabel(item)
@@ -3354,6 +3358,17 @@ function assetImageUrl(item) {
 function hasAssetImage(item) {
   if (!item) return false
   return !!(item.image_url || item.local_path)
+}
+/** 就绪度：返回该分镜缺失的素材清单（[] 表示齐全），供合成前告警 */
+function storyboardMissingAssets(sb) {
+  const lacks = []
+  if (!sb) return lacks
+  const hasImg = hasAssetImage(sb) || (Array.isArray(sb.images) && sb.images.some((im) => im && hasAssetImage(im)))
+  if (!hasImg) lacks.push('截图')
+  const vidList = sbVideos.value?.[sb.id] || []
+  const hasVid = vidList.some((v) => v.status === 'completed' && recordHasPlayableVideoUrl(v))
+  if (!hasVid) lacks.push('视频')
+  return lacks
 }
 function getSelectedStyle() {
   return getSelectedStylePrompt()
@@ -6894,14 +6909,17 @@ function pollTask(taskId, onDone, meta = {}) {
 }
 
 /** 一键生成视频：暂停时等待，返回 { paused: true } 表示被暂停中断 */
-function pollTaskWithPause(taskId, onDone) {
-  const maxAttempts = 450  // 450 × 2s = 15 分钟
+function pollTaskWithPause(taskId, onDone, maxAttempts = 450) {
   const interval = 2000
   let attempts = 0
   return new Promise((resolve) => {
     const tick = async () => {
       if (pipelinePaused.value) {
         resolve({ paused: true })
+        return
+      }
+      if (pipelineCancelRequested.value) {
+        resolve({ canceled: true })
         return
       }
       attempts++
@@ -6943,13 +6961,28 @@ function onPipelineResume() {
 }
 
 function addPipelineError(step, message) {
+  // 取消哨兵不写进错误日志（正常中止流程）
+  if (message && String(message).includes(PIPELINE_CANCEL_SENTINEL)) return
   const time = new Date().toLocaleTimeString('zh-CN')
   pipelineErrorLog.value = [...pipelineErrorLog.value, { time, step, message }]
 }
 
 async function checkPause() {
+  // 取消时抛出一个哨兵错误，中断整条 pipeline（由 trigger 侧 try/finally 捕获善后）
+  if (pipelineCancelRequested.value) throw new Error(PIPELINE_CANCEL_SENTINEL)
   while (pipelinePaused.value) {
     await waitForResume()
+  }
+}
+
+/** 请求取消整条 pipeline：置位取消标记，并解除可能存在的暂停等待，让轮询尽快退出 */
+function requestPipelineCancel() {
+  pipelineCancelRequested.value = true
+  if (pipelinePaused.value) pipelinePaused.value = false
+  if (pipelineResolveResume) {
+    const r = pipelineResolveResume
+    pipelineResolveResume = null
+    r()
   }
 }
 
@@ -7006,11 +7039,13 @@ async function startOneClickPipeline() {
   pipelineStepTotal.value = 10
   pipelineRunning.value = true
   pipelinePaused.value = false
+  pipelineCancelRequested.value = false
   try {
     await runOneClickPipeline(false)
   } finally {
     pipelineRunning.value = false
     pipelineActiveTasks.clear()
+    pipelineCancelRequested.value = false
   }
 }
 
@@ -7023,11 +7058,13 @@ async function startTextFrameworkPipeline() {
   pipelineStepTotal.value = 4
   pipelineRunning.value = true
   pipelinePaused.value = false
+  pipelineCancelRequested.value = false
   try {
     await runOneClickPipeline(true)
   } finally {
     pipelineRunning.value = false
     pipelineActiveTasks.clear()
+    pipelineCancelRequested.value = false
   }
 }
 
@@ -7132,21 +7169,31 @@ async function runOneClickPipeline(textOnly = false) {
       setPipelineStep(4, t('t724'))
       // 与手动生成一样，每 2 秒刷新一次分镜列表，让已解析的分镜逐步显示
       const sbRefreshTimer = setInterval(refreshStoryboardsOnly, 2000)
+      let sbResult
+      const sbMaxRetry = 3
       try {
-        const res = await dramaAPI.generateStoryboard(episodeId, {
-          style,
-          aspect_ratio: projectAspectRatio.value || '16:9',
-          storyboard_count: getStoryboardCountForApi(),
-          video_duration: getVideoDurationForApi(),
-          include_narration: !!storyboardIncludeNarration.value,
-          universal_omni_storyboard: !!storyboardUniversalOmni.value,
-        })
-        const taskId = res?.task_id ?? (typeof res === 'string' ? res : null)
-        if (taskId) {
-          const result = await pollTaskWithPause(taskId, () => loadDrama())
+        for (let attempt = 1; attempt <= sbMaxRetry; attempt++) {
+          const res = await dramaAPI.generateStoryboard(episodeId, {
+            style,
+            aspect_ratio: projectAspectRatio.value || '16:9',
+            storyboard_count: getStoryboardCountForApi(),
+            video_duration: getVideoDurationForApi(),
+            include_narration: !!storyboardIncludeNarration.value,
+            universal_omni_storyboard: !!storyboardUniversalOmni.value,
+          })
+          const taskId = res?.task_id ?? (typeof res === 'string' ? res : null)
+          if (taskId) {
+            sbResult = await pollTaskWithPause(taskId, () => loadDrama())
+            // 分镜失败：瞬时故障自动重建任务重试（最多 sbMaxRetry 次），与图/视频对齐
+            if (sbResult?.error && attempt < sbMaxRetry) continue
+            break
+          }
+          break
+        }
+          const result = sbResult
           if (result?.paused) { clearInterval(sbRefreshTimer); await waitForResume(); return }
           if (result?.error) {
-            // 任务失败，但后端可能已保存了部分分镜，确保最新状态显示出来再停止
+            // 任务失败（重试已用尽），但后端可能已保存了部分分镜，确保最新状态显示出来再停止
             await loadDrama()
             addPipelineError(t('t725'), result.error)
             clearInterval(sbRefreshTimer)
@@ -7156,7 +7203,6 @@ async function runOneClickPipeline(textOnly = false) {
             sbTruncatedWarning.value = true
             sbTruncatedDismissed.value = false
           }
-        }
         await loadDrama()
         await pipelineRest()
       } catch (e) {
@@ -7349,7 +7395,8 @@ async function runOneClickPipeline(textOnly = false) {
               aspect_ratio: projectAspectRatio.value || '16:9',
             })
             if (res?.task_id) {
-              const result = await pollTaskWithPause(res.task_id, () => loadSingleStoryboardMedia(sb.id))
+              // 视频：单次最长等 10 分钟（AGNES 重启等场景会一直 pending，用更短的卡死上限尽早重提交）
+              const result = await pollTaskWithPause(res.task_id, () => loadSingleStoryboardMedia(sb.id), 300)
               if (result?.paused) return { paused: true }
               if (result?.error) throw new Error(result.error)
             } else await loadSingleStoryboardMedia(sb.id)
@@ -7417,7 +7464,8 @@ async function runOneClickPipeline(textOnly = false) {
               duration: getSbVideoDurationForApi(sb),
             })
             if (res?.task_id) {
-              const result = await pollTaskWithPause(res.task_id, () => loadSingleStoryboardMedia(sb.id))
+              // 视频：单次最长等 10 分钟（AGNES 重启等场景会一直 pending，用更短的卡死上限尽早重提交）
+              const result = await pollTaskWithPause(res.task_id, () => loadSingleStoryboardMedia(sb.id), 300)
               if (result?.paused) return { paused: true }
               if (result?.error) throw new Error(result.error)
             } else await loadSingleStoryboardMedia(sb.id)
@@ -7434,6 +7482,11 @@ async function runOneClickPipeline(textOnly = false) {
     await checkPause()
     setPipelineStep(10, t('t745'))
     try {
+      // 就绪度检查：先给出缺失素材的分镜清单，避免成片缺镜头被静默吞掉
+      for (const sb of (store.storyboards || [])) {
+        const lacks = storyboardMissingAssets(sb)
+        if (lacks.length) addPipelineError(t('t746'), `分镜 #${sb.storyboard_number ?? sb.id} 缺：${lacks.join('、')}`)
+      }
       const result = await dramaAPI.finalizeEpisode(episodeId, getFinalizeMergeOptions())
       if (result?.task_id != null) {
         const pollResult = await pollTaskWithPause(result.task_id, () => loadDrama())
@@ -7768,6 +7821,11 @@ async function runRepairPipeline() {
     await checkPause()
     pipelineCurrentStep.value = t('t761')
     try {
+      // 就绪度检查：先给出缺失素材的分镜清单，避免成片缺镜头被静默吞掉
+      for (const sb of (store.storyboards || [])) {
+        const lacks = storyboardMissingAssets(sb)
+        if (lacks.length) addPipelineError(t('t762'), `分镜 #${sb.storyboard_number ?? sb.id} 缺：${lacks.join('、')}`)
+      }
       const result = await dramaAPI.finalizeEpisode(episodeId, getFinalizeMergeOptions())
       if (result?.task_id != null) {
         const pollResult = await pollTaskWithPause(result.task_id, () => loadDrama())
@@ -7780,6 +7838,19 @@ async function runRepairPipeline() {
     } catch (e) {
       addPipelineError(t('t762'), e.message || String(e))
     }
+
+    // 全剧一致性自检（易用性）：跑完后给出角色/场景一致性结论，不阻断
+    try {
+      const req = (await import('@/utils/request')).default
+      const cons = await req.get(`/dramas/${dramaIdVal}/consistency`)
+      const warns = (cons?.findings || []).filter((f) => f.severity === 'warning')
+      if (warns.length) {
+        addPipelineError(t('t763'), `一致性自检：告警 ${warns.length} 条`)
+        warns.slice(0, 3).forEach((f) => addPipelineError(t('t763'), '· ' + f.message))
+      } else {
+        addPipelineError(t('t763'), '一致性自检通过')
+      }
+    } catch (_) { /* 自检失败不阻断主流程 */ }
 
     pipelineCurrentStep.value = t('t763')
     ElMessage.success(t('t764'))
