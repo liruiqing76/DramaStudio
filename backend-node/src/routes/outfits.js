@@ -183,6 +183,39 @@ function routes(db, cfg, log) {
     }
   });
 
+  // AI 对话式修改服装描述
+  router.post('/outfits/:outfitId/chat-modify', async (req, res) => {
+    try {
+      const userMessage = (req.body?.message || '').trim();
+      if (!userMessage) return response.badRequest(res, '修改需求不能为空');
+      const outfit = outfitService.get(req.params.outfitId);
+      if (!outfit) return response.notFound(res, '造型不存在');
+
+      const aiClient = require('../services/aiClient');
+      const systemPrompt = `你是一个服装造型修改助手。用户会给你当前服装描述和修改需求，你需要输出修改后的完整服装描述。
+
+规则：
+1. 只修改用户要求的部分，其他部分保持不变
+2. 输出必须是完整的服装描述文本，直接可以用于 AI 生图
+3. 保持中文输出
+4. 不要输出任何解释说明，只输出修改后的描述`;
+
+      const userPrompt = `服装名称：${outfit.name}\n\n当前描述：\n${outfit.description || '（暂无）'}\n\n修改需求：\n${userMessage}\n\n请输出修改后的完整描述：`;
+
+      const newDesc = await aiClient.generateText(db, log, 'text', userPrompt, systemPrompt, {
+        scene_key: 'outfit_chat_modify',
+        temperature: 0.7,
+        max_tokens: 1500,
+      });
+
+      outfitService.update(req.params.outfitId, { description: newDesc.trim() });
+      response.success(res, { id: outfit.id, name: outfit.name, description: newDesc.trim() });
+    } catch (err) {
+      log.error('outfit chat-modify', { error: err.message });
+      response.internalError(res, err.message);
+    }
+  });
+
   return router;
 }
 

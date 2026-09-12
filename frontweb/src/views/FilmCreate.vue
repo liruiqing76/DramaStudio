@@ -1755,6 +1755,10 @@
                 <el-button size="small" text type="danger" @click="onOutfitDelete(o)">删除</el-button>
               </div>
               <div v-if="o.description" style="font-size:12px;color:#909399;margin-top:4px">{{ o.description }}</div>
+              <div style="display:flex;gap:8px;align-items:flex-start;margin-top:6px">
+                <el-input v-model="outfitChatMessage" placeholder="AI 修改服装，如：把领口改成立领，加金色刺绣" size="small" style="flex:1" @keyup.enter="doOutfitChatModify(o.id)" />
+                <el-button size="small" type="primary" :loading="outfitChatModifying" :disabled="!outfitChatMessage.trim()" @click="doOutfitChatModify(o.id)">AI 修改</el-button>
+              </div>
               <div v-if="outfitViewSrc(o,'front') || outfitViewSrc(o,'side') || outfitViewSrc(o,'back')" style="display:flex;gap:8px;margin-top:8px">
                 <img v-if="outfitViewSrc(o,'front')" :src="outfitViewSrc(o,'front')" style="width:80px;height:120px;object-fit:cover;border-radius:4px" />
                 <img v-if="outfitViewSrc(o,'side')" :src="outfitViewSrc(o,'side')" style="width:80px;height:120px;object-fit:cover;border-radius:4px" />
@@ -2942,9 +2946,9 @@ const {
   onAddCharFromLibrary, onAddDramaCharToEpisode,
   // 衣橱
   charEditTab, charOutfits, charOutfitsLoading, outfitPanelOpen, outfitForm, outfitSaving,
-  outfitAnchorsExtracting, outfitViewGenIds,
+  outfitAnchorsExtracting, outfitViewGenIds, outfitChatModifying, outfitChatMessage,
   onOutfitCreate, onOutfitSave, onOutfitCancel, onOutfitEdit, onOutfitSetDefault, onOutfitDelete,
-  onOutfitExtractAnchors, onOutfitGenerateViews, outfitViewSrc,
+  onOutfitExtractAnchors, onOutfitGenerateViews, outfitViewSrc, doOutfitChatModify,
 } = useCharacters({ store, dramaId, currentEpisodeId, getSelectedStyle, loadDrama, pollTask, pollUntilResourceHasImage, hasAssetImage })
 
 // ── Composable: Props ──────────────────────────────────

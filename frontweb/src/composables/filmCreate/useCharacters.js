@@ -72,6 +72,9 @@ export function useCharacters(deps) {
   const outfitForm = ref(null)           // 造型表单 { id?, character_id, name, description, hair_style, ... }
   const outfitSaving = ref(false)
   const outfitAnchorsExtracting = ref(false)
+  const outfitChatModifying = ref(false)
+  const outfitChatMessage = ref('')
+  const outfitChatTargetId = ref(null)
   const outfitViewGenIds = reactive(new Set()) // 正在生成三视图的造型 id
   let outfitViewPollTimer = null
 
@@ -253,6 +256,25 @@ export function useCharacters(deps) {
     if (raw.startsWith('http')) return raw
     if (raw.startsWith('/')) return raw
     return '/static/' + raw.replace(/^\//, '')
+  }
+
+  async function doOutfitChatModify(outfitId) {
+    const msg = outfitChatMessage.value.trim()
+    if (!msg || !outfitId) return
+    outfitChatModifying.value = true
+    try {
+      const res = await outfitAPI.chatModify(outfitId, msg)
+      if (res?.description) {
+        const o = charOutfits.value.find((x) => x.id === outfitId)
+        if (o) o.description = res.description
+        outfitChatMessage.value = ''
+        ElMessage.success('服装已修改')
+      }
+    } catch (e) {
+      ElMessage.error(e.message || '修改失败')
+    } finally {
+      outfitChatModifying.value = false
+    }
   }
 
   // ── 角色生成状态 ──────────────────────────────────────
@@ -1048,6 +1070,8 @@ export function useCharacters(deps) {
     outfitForm,
     outfitSaving,
     outfitAnchorsExtracting,
+    outfitChatModifying,
+    outfitChatMessage,
     outfitViewGenIds,
     // 衣橱函数
     onOutfitCreate,
@@ -1059,6 +1083,7 @@ export function useCharacters(deps) {
     onOutfitExtractAnchors,
     onOutfitGenerateViews,
     outfitViewSrc,
+    doOutfitChatModify,
     // 生成状态
     charactersGenerating,
     generatingCharIds,

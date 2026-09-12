@@ -42,4 +42,7 @@ export const outfitAPI = {
   extractAnchors(outfitId, description) {
     return request.post(`/outfits/${outfitId}/extract-anchors`, { description })
   },
+  chatModify(outfitId, message) {
+    return request.post(`/outfits/${outfitId}/chat-modify`, { message })
+  },
 }
