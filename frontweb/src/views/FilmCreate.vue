@@ -1601,7 +1601,7 @@
             </div>
           </el-form-item>
         </div>
-        <p class="config-tip">{{ $t('t287') }}<el-link type="primary" :underline="false" @click="showAiConfigDialog = true">{{ $t('t288') }}</el-link>{{ $t('t289') }}</p>
+        <p class="config-tip">{{ $t('t287') }}<el-link type="primary" underline="never" @click="showAiConfigDialog = true">{{ $t('t288') }}</el-link>{{ $t('t289') }}</p>
       </section>
 
       <!-- 8. 合成视频 -->
