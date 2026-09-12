@@ -19,12 +19,17 @@ function createApp() {
 
   // 启动时重置卡死的 processing 任务（node --watch 重启会导致 setImmediate 回调丢失）
   try {
-    const staleTables = ['async_tasks', 'image_generations', 'video_generations', 'video_merges'];
+    const staleTables = [
+      { name: 'async_tasks', errCol: 'error' },
+      { name: 'image_generations', errCol: 'error_msg' },
+      { name: 'video_generations', errCol: 'error_msg' },
+      { name: 'video_merges', errCol: 'error_msg' },
+    ];
     let totalReset = 0;
-    for (const table of staleTables) {
-      const info = db.prepare(`UPDATE ${table} SET status = 'failed', error = '后端重启时自动重置', updated_at = ? WHERE status = 'processing' AND deleted_at IS NULL`).run(new Date().toISOString());
+    for (const { name, errCol } of staleTables) {
+      const info = db.prepare(`UPDATE ${name} SET status = 'failed', ${errCol} = '后端重启时自动重置', updated_at = ? WHERE status = 'processing' AND deleted_at IS NULL`).run(new Date().toISOString());
       if (info.changes > 0) {
-        console.log(`[startup] 重置 ${table} 中 ${info.changes} 个卡死的 processing 任务`);
+        console.log(`[startup] 重置 ${name} 中 ${info.changes} 个卡死的 processing 任务`);
         totalReset += info.changes;
       }
     }
