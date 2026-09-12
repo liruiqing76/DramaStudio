@@ -207,7 +207,103 @@ function generateCharacters(db, cfg, log, req) {
   return task.id;
 }
 
+/**
+ * 从剧本中单独重新提取某个角色的 appearance/description
+ * 只更新该角色，不影响其他角色
+ */
+async function reextractSingleCharacter(db, cfg, log, characterId) {
+  const charRow = db.prepare(
+    'SELECT id, drama_id, name FROM characters WHERE id = ? AND deleted_at IS NULL'
+  ).get(Number(characterId));
+  if (!charRow) return { ok: false, error: '角色不存在' };
+
+  const dramaRow = db.prepare(
+    'SELECT id, title, description, genre, style, metadata FROM dramas WHERE id = ? AND deleted_at IS NULL'
+  ).get(charRow.drama_id);
+  if (!dramaRow) return { ok: false, error: '剧本不存在' };
+
+  let effectiveCfg = cfg;
+  try {
+    let next = { ...cfg, style: { ...(cfg?.style || {}) } };
+    if (dramaRow.metadata) {
+      const meta = typeof dramaRow.metadata === 'string' ? JSON.parse(dramaRow.metadata) : dramaRow.metadata;
+      if (meta && meta.aspect_ratio) {
+        next.style.default_image_ratio = meta.aspect_ratio;
+      }
+    }
+    effectiveCfg = mergeCfgStyleWithDrama(next, dramaRow);
+  } catch (_) {}
+
+  const systemPrompt = promptI18n.getCharacterExtractionPrompt(effectiveCfg);
+  const dramaInfo = promptI18n.formatUserPrompt(
+    effectiveCfg,
+    'drama_info_template',
+    dramaRow.title || '',
+    dramaRow.description || '',
+    dramaRow.genre || ''
+  );
+  const userPrompt = `${dramaInfo}\n\n【特别注意】请只重新提取角色「${charRow.name}」的设定，忽略其他角色。只返回包含该角色的 JSON 数组（数组中只有 1 个元素）。`;
+
+  let text;
+  try {
+    text = await aiClient.generateText(db, log, 'text', userPrompt, systemPrompt, {
+      scene_key: 'role_extraction',
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
+  } catch (err) {
+    return { ok: false, error: 'AI 生成失败: ' + err.message };
+  }
+
+  let parsed;
+  try {
+    const raw = safeParseAIJSON(text, log);
+    const arr = extractFirstArray(raw) || [];
+    parsed = arr.find((c) => (c.name || '').trim() === charRow.name) || arr[0];
+  } catch (err) {
+    return { ok: false, error: '解析 AI 返回结果失败' };
+  }
+  if (!parsed) return { ok: false, error: 'AI 未返回角色「' + charRow.name + '」的信息' };
+
+  const now = new Date().toISOString();
+  db.prepare(
+    'UPDATE characters SET appearance = ?, description = ?, role = ?, updated_at = ? WHERE id = ?'
+  ).run(
+    parsed.appearance ?? null,
+    parsed.description ?? null,
+    parsed.role ?? null,
+    now,
+    charRow.id
+  );
+
+  if (parsed.appearance) {
+    try {
+      await characterLibraryService.generateCharacterPromptOnly(db, log, effectiveCfg, charRow.id, undefined, undefined);
+    } catch (err) {
+      log.warn('[单独重新提取] 预生成polished_prompt失败', { character_id: charRow.id, error: err.message });
+    }
+    setImmediate(() => {
+      enrichIdentityAnchors(db, log, charRow.id, parsed.appearance).catch(() => {});
+    });
+  }
+
+  const updatedChar = db.prepare('SELECT polished_prompt FROM characters WHERE id = ?').get(charRow.id);
+  log.info('[单独重新提取] 完成', { character_id: charRow.id, name: charRow.name });
+  return {
+    ok: true,
+    character: {
+      id: charRow.id,
+      name: charRow.name,
+      appearance: parsed.appearance ?? null,
+      description: parsed.description ?? null,
+      role: parsed.role ?? null,
+      polished_prompt: updatedChar?.polished_prompt ?? null,
+    },
+  };
+}
+
 module.exports = {
   generateCharacters,
   enrichIdentityAnchors,
+  reextractSingleCharacter,
 };

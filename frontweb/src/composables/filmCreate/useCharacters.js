@@ -57,6 +57,7 @@ export function useCharacters(deps) {
   const editCharacterPromptGenerating = ref(false)
   const extractingCharAppearance = ref(false)
   const extractingAnchors = ref(false)
+  const reextractingFromScript = ref(false)
   const addCharRefImage = ref(null)   // { dataUrl, filename }
   const addCharRefFileInput = ref(null)
   let editCharacterPollTimer = null
@@ -504,6 +505,26 @@ export function useCharacters(deps) {
       ElMessage.success('参考图已移除')
     } catch (e) {
       ElMessage.error('移除失败')
+    }
+  }
+
+  async function doReextractFromScript() {
+    const form = editCharacterForm.value
+    if (!form?.id) return
+    reextractingFromScript.value = true
+    try {
+      const res = await characterAPI.reextractFromScript(form.id)
+      if (res?.appearance) {
+        form.appearance = res.appearance
+        if (res.description) form.description = res.description
+        if (res.role) form.role = res.role
+        if (res.polished_prompt) form.polished_prompt = res.polished_prompt
+        ElMessage.success('已从剧本重新提取角色设定（含提示词）')
+      }
+    } catch (e) {
+      ElMessage.error(e.message || '重新提取失败')
+    } finally {
+      reextractingFromScript.value = false
     }
   }
 
@@ -991,6 +1012,7 @@ export function useCharacters(deps) {
     editCharacterPromptGenerating,
     extractingCharAppearance,
     extractingAnchors,
+    reextractingFromScript,
     addCharRefImage,
     addCharRefFileInput,
     // 衣橱状态
@@ -1058,6 +1080,7 @@ export function useCharacters(deps) {
     submitEditCharacter,
     doGenerateCharacterPrompt,
     doExtractCharFromImage,
+    doReextractFromScript,
     extractIdentityAnchors,
     clearCharRefImage,
     onCloseCharDialog,

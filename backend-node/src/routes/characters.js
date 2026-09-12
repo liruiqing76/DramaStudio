@@ -249,6 +249,20 @@ function routes(db, cfg, log, uploadService) {
       });
       response.success(res, { message: '锚点提炼已启动，请稍后刷新查看' });
     },
+    reextractFromScript: async (req, res) => {
+      try {
+        const { reextractSingleCharacter } = require('../services/characterGenerationService');
+        const out = await reextractSingleCharacter(db, cfg, log, req.params.id);
+        if (!out.ok) {
+          if (out.error === '角色不存在') return response.notFound(res, out.error);
+          return response.badRequest(res, out.error);
+        }
+        response.success(res, out.character);
+      } catch (err) {
+        log.error('characters reextract-from-script', { error: err.message });
+        response.internalError(res, err.message);
+      }
+    },
     generateFourViewImage: async (req, res) => {
       try {
         const body = req.body || {};

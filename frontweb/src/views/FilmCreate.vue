@@ -1721,7 +1721,10 @@
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('t316')">
-          <el-input v-model="editCharacterForm.appearance" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" :placeholder="$t('t317')" />
+          <div style="width:100%">
+            <el-input v-model="editCharacterForm.appearance" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" :placeholder="$t('t317')" />
+            <el-button v-if="editCharacterForm.id" size="small" type="warning" plain :loading="reextractingFromScript" @click="doReextractFromScript" style="margin-top:6px">从剧本重新提取</el-button>
+          </div>
         </el-form-item>
         <el-form-item :label="$t('t318')">
           <el-input v-model="editCharacterForm.description" type="textarea" :autosize="{ minRows: 3, maxRows: 8 }" :placeholder="$t('t319')" />
@@ -2854,7 +2857,7 @@ async function runConcurrently(items, concurrency, fn, options = {}) {
 // ── Composable: Characters ────────────────────────────
 const {
   showEditCharacter, editCharacterForm, editCharacterSaving, editCharacterPromptGenerating,
-  extractingCharAppearance, extractingAnchors, addCharRefImage, addCharRefFileInput,
+  extractingCharAppearance, extractingAnchors, reextractingFromScript, addCharRefImage, addCharRefFileInput,
   charactersGenerating, generatingCharIds, sd2CertifyingId, showCharSd2Cert, charSd2CertPayload,
   sd2VoiceUploadingId,
   showCharLibrary, charLibraryList, charLibraryLoading, charLibraryPage, charLibraryPageSize,
@@ -2863,7 +2866,7 @@ const {
   showEditCharLibrary, editCharLibraryForm,
   editCharLibrarySaving, addingCharToLibraryId, addingCharToMaterialId, addingCharFromLibraryId,
   charRoleLabel, onGenerateCharacters: onGenerateCharactersRaw, openAddCharacter, stopCharacterPromptPoll, editCharacter,
-  saveCharRefImageIfAny, submitEditCharacter, doGenerateCharacterPrompt, doExtractCharFromImage,
+  saveCharRefImageIfAny, submitEditCharacter, doGenerateCharacterPrompt, doExtractCharFromImage, doReextractFromScript,
   extractIdentityAnchors, clearCharRefImage, onCloseCharDialog, onDeleteCharacter, onGenerateCharacterImage, onSd2CertifyCharacter, onSd2CertifyRefresh, sd2ActionLabel, onSd2PrimaryAction, openCharSd2CertDialog,
   onSd2VoicePrimaryAction, onSd2VoiceReplace, sd2VoiceActionLabel, playSd2Voice,
   loadCharLibraryList, debouncedLoadCharLibrary, loadDramaAllCharList, debouncedLoadDramaAllCharList,
