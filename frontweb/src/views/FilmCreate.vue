@@ -878,6 +878,16 @@
                 {{ $t('t151') }}
               </el-button>
               <el-button
+                type="success"
+                plain
+                size="large"
+                :loading="batchLastFrameRunning"
+                :disabled="!currentEpisodeId || batchLastFrameRunning || batchImageRunning || batchVideoRunning || pipelineRunning || storyboardGenerating || universalOmniPolishRunning"
+                @click="startBatchLastFrameGeneration"
+              >
+                批量生成尾帧
+              </el-button>
+              <el-button
                 type="warning"
                 plain
                 size="large"
@@ -3190,6 +3200,7 @@ const regenSbImagesForAsset = reactive(new Set())
 const regenSbImagesProgress = ref({})
 // 批量生成分镜图
 const batchImageRunning = ref(false)
+const batchLastFrameRunning = ref(false)
 const batchImageStopping = ref(false)
 const batchImageProgress = ref({ current: 0, total: 0, failed: 0 })
 const inferringParams = ref(false)
@@ -6862,6 +6873,49 @@ async function startBatchImageGeneration() {
     }
   } finally {
     batchImageRunning.value = false
+  }
+}
+
+async function startBatchLastFrameGeneration() {
+  if (!currentEpisodeId.value || batchLastFrameRunning.value || pipelineRunning.value) return
+  batchLastFrameRunning.value = true
+  try {
+    if (Object.keys(sbImages.value).length === 0) {
+      await loadStoryboardMedia()
+    }
+    const boards = store.storyboards || []
+    const todo = boards.filter((sb) => {
+      const hasFirst = !!(getSbFirstImage(sb.id) || sb.image_url || sb.composed_image)
+      const hasLast = !!getSbLastImage(sb.id)
+      return hasFirst && !hasLast
+    })
+    if (todo.length === 0) {
+      ElMessage.info('所有分镜已有尾帧，无需生成')
+      return
+    }
+    ElMessage.info(`开始批量生成 ${todo.length} 个尾帧`)
+    const concurrency = pipelineConcurrency.value || 3
+    let queueIdx = 0
+    let doneCount = 0
+    let failedCount = 0
+    const worker = async () => {
+      while (queueIdx < todo.length) {
+        if (batchImageStopping.value) break
+        const sb = todo[queueIdx++]
+        try {
+          await onGenerateSbFrameImage(sb, 'last')
+        } catch (e) {
+          failedCount++
+          console.warn('[批量尾帧] 失败', sb.id, e.message)
+        }
+        doneCount++
+      }
+    }
+    await Promise.allSettled(Array.from({ length: Math.min(concurrency, todo.length) }, () => worker()))
+    if (failedCount === 0) ElMessage.success(`批量生成 ${todo.length} 个尾帧完成`)
+    else ElMessage.warning(`${todo.length - failedCount} 个成功，${failedCount} 个失败`)
+  } finally {
+    batchLastFrameRunning.value = false
   }
 }
 
