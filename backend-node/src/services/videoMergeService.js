@@ -204,11 +204,21 @@ async function processVideoMerge(db, log, mergeId, baseUrl) {
   const tempDir = path.join(require('os').tmpdir(), 'drama-video-merge');
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
+  const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v'];
   const localPaths = [];
   const toCleanup = [];
+  const skippedScenes = [];
   for (let i = 0; i < scenes.length; i++) {
+    const url = scenes[i].video_url;
+    if (!url) { skippedScenes.push({ index: i, reason: 'no video_url' }); continue; }
+    const ext = path.extname(url.split('?')[0].split('#')[0]).toLowerCase();
+    if (ext && !VIDEO_EXTS.includes(ext)) {
+      skippedScenes.push({ index: i, reason: `not a video file (${ext})`, url: url.slice(0, 100) });
+      log.warn('Video merge: skipping non-video scene', { merge_id: mergeId, index: i, ext, url: url.slice(0, 120) });
+      continue;
+    }
     const p = await resolveVideoToLocalPath(
-      scenes[i].video_url,
+      url,
       baseUrl,
       storageRoot,
       tempDir,
@@ -218,7 +228,12 @@ async function processVideoMerge(db, log, mergeId, baseUrl) {
     if (p) {
       localPaths.push(p);
       if (p.startsWith(tempDir)) toCleanup.push(p);
+    } else {
+      skippedScenes.push({ index: i, reason: 'resolve failed' });
     }
+  }
+  if (skippedScenes.length > 0) {
+    log.warn('Video merge: skipped scenes', { merge_id: mergeId, count: skippedScenes.length, details: skippedScenes });
   }
 
   const ffmpegAvailable = hasLocalFfmpeg();
@@ -484,6 +499,14 @@ async function mergeWithTimeline(db, log, mergeId, req) {
     const transition = VALID_TRANSITIONS.has(seg.transition) ? seg.transition : 'cut';
 
     // 解析视频路径
+    const segUrl = seg.video_url || seg.video_path;
+    if (segUrl) {
+      const segExt = path.extname(segUrl.split('?')[0].split('#')[0]).toLowerCase();
+      if (segExt && !['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v'].includes(segExt)) {
+        log.warn('[时间线合成] 跳过非视频文件', { index: i, ext: segExt, url: segUrl.slice(0, 120) });
+        continue;
+      }
+    }
     const videoPath = resolveLocalVideoPath(seg.video_url || seg.video_path, seg.local_path);
     if (!videoPath || !fs.existsSync(videoPath)) {
       log.warn('[时间线合成] 片段视频不存在，跳过', { index: i, path: videoPath });
