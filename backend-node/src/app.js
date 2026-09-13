@@ -18,16 +18,31 @@ function createApp() {
   runMigrationsAndEnsure(db);
 
   // 启动时重置卡死的 processing 任务（node --watch 重启会导致 setImmediate 回调丢失）
+  // 但 video_generations 有 remote_task_id 的任务已在远端提交，应恢复轮询而非标记 failed
   try {
+    // 先捞出可恢复的视频任务（有 remote_task_id），排除出 blanket reset
+    const resumableVideoIds = db.prepare(
+      `SELECT id FROM video_generations WHERE status = 'processing' AND remote_task_id IS NOT NULL AND deleted_at IS NULL`
+    ).all().map(r => r.id);
+    if (resumableVideoIds.length > 0) {
+      console.log(`[startup] ${resumableVideoIds.length} 个视频任务有 remote_task_id，将恢复轮询: [${resumableVideoIds.join(',')}]`);
+    }
+
     const staleTables = [
       { name: 'async_tasks', errCol: 'error' },
       { name: 'image_generations', errCol: 'error_msg' },
-      { name: 'video_generations', errCol: 'error_msg' },
+      { name: 'video_generations', errCol: 'error_msg', excludeIds: resumableVideoIds },
       { name: 'video_merges', errCol: 'error_msg' },
     ];
     let totalReset = 0;
-    for (const { name, errCol } of staleTables) {
-      const info = db.prepare(`UPDATE ${name} SET status = 'failed', ${errCol} = '后端重启时自动重置', updated_at = ? WHERE status = 'processing' AND deleted_at IS NULL`).run(new Date().toISOString());
+    for (const { name, errCol, excludeIds } of staleTables) {
+      let info;
+      if (excludeIds && excludeIds.length > 0) {
+        const placeholders = excludeIds.map(() => '?').join(',');
+        info = db.prepare(`UPDATE ${name} SET status = 'failed', ${errCol} = '后端重启时自动重置', updated_at = ? WHERE status = 'processing' AND deleted_at IS NULL AND id NOT IN (${placeholders})`).run(new Date().toISOString(), ...excludeIds);
+      } else {
+        info = db.prepare(`UPDATE ${name} SET status = 'failed', ${errCol} = '后端重启时自动重置', updated_at = ? WHERE status = 'processing' AND deleted_at IS NULL`).run(new Date().toISOString());
+      }
       if (info.changes > 0) {
         console.log(`[startup] 重置 ${name} 中 ${info.changes} 个卡死的 processing 任务`);
         totalReset += info.changes;
@@ -35,6 +50,14 @@ function createApp() {
     }
     if (totalReset > 0) {
       console.log(`[startup] 共重置 ${totalReset} 个卡死任务`);
+    }
+
+    // 恢复轮询：对有 remote_task_id 的视频任务重新发起轮询
+    if (resumableVideoIds.length > 0) {
+      const { resumeVideoPolling } = require('./services/videoService');
+      for (const vid of resumableVideoIds) {
+        setImmediate(() => resumeVideoPolling(db, logger, vid));
+      }
     }
   } catch (e) {
     console.warn('[startup] 重置卡死任务失败:', e.message);

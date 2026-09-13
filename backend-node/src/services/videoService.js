@@ -536,10 +536,85 @@ function deleteById(db, log, id) {
   return result.changes > 0;
 }
 
+/**
+ * 恢复轮询：后端重启后，对已提交到远端（有 remote_task_id）的 video_generations
+ * 重新发起轮询，而非标记 failed。Agnes 视频生成耗时数分钟，node --watch 重启会
+ * 频繁打断 setImmediate 回调，但远端任务仍在运行——直接 failed 会浪费配额。
+ */
+async function resumeVideoPolling(db, log, videoGenId) {
+  const row = db.prepare('SELECT * FROM video_generations WHERE id = ? AND deleted_at IS NULL').get(Number(videoGenId));
+  if (!row || !row.remote_task_id) {
+    log.warn('[resumeVideo] 跳过：任务不存在或无 remote_task_id', { videoGenId });
+    return;
+  }
+  log.info('[resumeVideo] 恢复轮询', { videoGenId, remote_task_id: row.remote_task_id });
+  try {
+    const loadConfig = require('../config').loadConfig;
+    const cfg = loadConfig();
+    const config = videoClient.getDefaultVideoConfig(db, row.model);
+    if (!config) {
+      setVideoGenFailed(db, videoGenId, '未配置视频模型（恢复轮询时）', new Date().toISOString());
+      return;
+    }
+    const POLL_INTERVAL_MS = 3000;
+    const { resolveVideoGenerationTimeoutMinutes } = require('../config/videoGeneration');
+    const generationTimeoutMinutes = resolveVideoGenerationTimeoutMinutes(cfg);
+    const pollMaxAttempts = Math.max(1, Math.ceil((generationTimeoutMinutes * 60 * 1000) / POLL_INTERVAL_MS));
+    const pollResult = await videoClient.pollVideoTask(
+      db, log, videoGenId, row.remote_task_id, config, pollMaxAttempts, POLL_INTERVAL_MS
+    );
+    const now = new Date().toISOString();
+    const polledVideo = resolveRemoteVideoUrl(pollResult.video_url, pollResult.error);
+    if (polledVideo.ok) {
+      let localPath = null;
+      try {
+        const storagePath = path.isAbsolute(cfg.storage?.local_path)
+          ? cfg.storage.local_path
+          : path.join(process.cwd(), cfg.storage?.local_path || './data/storage');
+        const projectSubdir = storageLayout.getProjectStorageSubdir(db, row.drama_id);
+        localPath = await downloadVideoToLocal(storagePath, polledVideo.video_url, videoGenId, log, projectSubdir);
+        maybeNormalizeVideoAfterDownload(storagePath, localPath, row, videoGenId, log);
+      } catch (_) {}
+      try {
+        db.prepare('UPDATE video_generations SET status = ?, video_url = ?, local_path = ?, completed_at = ?, updated_at = ? WHERE id = ?')
+          .run('completed', polledVideo.video_url, localPath, now, now, videoGenId);
+      } catch (e) {
+        if ((e.message || '').includes('completed_at')) {
+          db.prepare('UPDATE video_generations SET status = ?, video_url = ?, local_path = ?, updated_at = ? WHERE id = ?')
+            .run('completed', polledVideo.video_url, localPath, now, videoGenId);
+        } else throw e;
+      }
+      if (row.storyboard_id) {
+        try {
+          db.prepare('UPDATE storyboards SET video_url = ?, local_path = ?, updated_at = ? WHERE id = ?')
+            .run(polledVideo.video_url, localPath, now, row.storyboard_id);
+        } catch (_) {}
+      }
+      if (row.task_id) {
+        const taskService = require('./taskService');
+        taskService.updateTaskResult(db, row.task_id, { video_generation_id: videoGenId, video_url: polledVideo.video_url, status: 'completed' });
+      }
+      log.info('[resumeVideo] 恢复成功', { videoGenId, video_url: polledVideo.video_url, local_path: localPath });
+    } else {
+      setVideoGenFailed(db, videoGenId, polledVideo.error, now);
+      if (row.task_id) {
+        const taskService = require('./taskService');
+        taskService.updateTaskError(db, row.task_id, polledVideo.error);
+      }
+      log.error('[resumeVideo] 恢复失败', { videoGenId, error: polledVideo.error });
+    }
+  } catch (err) {
+    const now = new Date().toISOString();
+    setVideoGenFailed(db, videoGenId, '恢复轮询异常: ' + err.message, now);
+    log.error('[resumeVideo] 异常', { videoGenId, error: err.message });
+  }
+}
+
 module.exports = {
   list,
   getById,
   deleteById,
   processVideoGeneration,
   resolveStoryboardVideoReferences,
+  resumeVideoPolling,
 };
