@@ -50,6 +50,41 @@
   原实现同时发送导致成批 HTTP 400；现按模式正确取舍
 - **图床依赖**：`configs/config.yaml` 的 `image_proxy.use_for_video` 由 `true` 改为 `false`，
   改用官方支持的 Data URI Base64 直传，移除第三方图床硬依赖
+- **Agnes 视频观感质量三连修**（同模型但画面差距大的根因）：
+  - **首帧优先走 keyframe**：`videoService` 检测到显式首/尾帧（`first_frame_url` /
+    `last_frame_url` / `image_url`）时**不再自动注入角色/场景参考图**，避免 `reference`
+    模式按官方互斥规则丢弃首尾帧；分镜构图 / 机位 / 站位由首帧真实锁定，
+    不再退化为「无构图锁」的纯文生视频（此前前端经典模式误把首尾帧塞进
+    `reference_image_urls` 也会触发该退化）
+  - **提示词按子句保留**：`adaptPromptForAgnes` 先整体删除无贡献子句（配乐 / 音效 /
+    情绪强度 / 时长 / 镜头标题、`=VideoRatio` 模板残留），再按「子句」优先级丢弃
+    低价值内容（氛围 / 情绪 / 景别 / 镜头角度），保住 场景 / 动作 / 结果 / 运镜 / 风格；
+    keyframe 上限由 300 字提到 500 字，不再把动作描述硬切掉一半
+  - **分辨率真实下发**：`callAgnesVideoApi` 接入 `resolution` 参数并映射为官方
+    `size` 档位（480P ~ 2160P，含 2k/4k 写法），此前硬编码 `720P` 且界面选择无效；
+    `callVideoApi` 统一剥离所有协议携带的 `=VideoRatio` 残留
+  - 新增 `test/agnesVideoQuality.test.js`（11 例，含真实线上样本回归）
+- **图片参考图丢失两连修**（人物串脸 / 外貌漂移的根因）：
+  - **`/static/` 前缀路径解析**：`resolveImageRef` / `resolveAgnesImageRef` /
+    `resolveImageToBuffer`（视频侧）/ `uploadLocalImageToProxy` 过去把
+    `/static/projects/x.png` 拼成 `<storage>/static/projects/x.png`（该目录不存在），
+    导致 **40% 的参考图被静默丢弃**；现统一剥离 `static/` 前缀
+  - **站位锁重复占位**：尾帧注入首帧站位锁时，同一张首帧图（`projects/…` 与
+    `/static/…` 两种写法）会重复占掉两个参考图槽位，把后续角色参考图挤出 `total=4`
+    上限，而 prompt 仍写「某某（参考图中的人物形象）」——模型拿不到该角色的图只能脑补，
+    或把唯一那张参考图的脸套到所有人身上（实测 38% 的生成存在此缺口）。
+    `canonicalRefKey` 现归一化 `static/` 前缀，`upsertLayoutLockRef` 改为原地提升不新增条目；
+    并在已注入站位锁时跳过冗余的场景参考图（首帧画面已锁定背景），把槽位让给角色。
+    真实数据复算：角色参考图 **1 → 3 张**
+- **悬空参考图指代**：`sanitizeFramePrompt` 新增 `referenceBackedNames` / `appearanceByName`，
+  只有真正附了参考图的角色才写「（参考图中的人物形象）」；没附图的角色回填
+  `characters.appearance` 外貌锚点（无锚点时去掉指代），不再让模型"照着不存在的参考图"画
+- **图片 prompt 瘦身**（实测单条 prompt 1142 字里约 55% 是噪声）：
+  画风词 zh/en 重复时按剧集语言只保留一份（217 字）；防分割约束从「正文尾巴 +
+  标签头 + negative_prompt」三处重复收敛为标签头 + negative_prompt 两处；
+  尾帧站位铁律由 131 字压缩为 50 字
+- 新增 `test/imageRefQuality.test.js`（15 例：路径解析 / 去重 key / 站位锁去重 /
+  悬空指代回填 / 画风词去重）
 
 ---
 

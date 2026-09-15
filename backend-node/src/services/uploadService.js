@@ -202,9 +202,11 @@ async function uploadLocalImageToProxy(storagePath, localPathOrUrl, log, tag) {
         filePath = path.join(storagePath, afterStatic.replace(/^\//, ''));
       }
     } else if (localPathOrUrl && storagePath) {
+      // 相对路径同样需剥掉 'static/' 前缀（/static/projects/x.png → projects/x.png），
+      // 否则会拼出不存在的 <storage>/static/... 路径
       filePath = path.isAbsolute(localPathOrUrl)
         ? localPathOrUrl
-        : path.join(storagePath, localPathOrUrl.replace(/^\//, ''));
+        : path.join(storagePath, localPathOrUrl.replace(/^\//, '').replace(/^static\//i, ''));
     }
     if (!filePath || !fs.existsSync(filePath)) {
       log.warn('[图床上传] 本地文件不存在', { tag, filePath });

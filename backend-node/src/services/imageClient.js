@@ -883,7 +883,8 @@ function resolveImageRef(value, filesBaseUrl, storageLocalPath) {
     if (afterStatic) relPath = afterStatic.replace(/^\//, '');
     else return s;
   } else if (storageLocalPath) {
-    relPath = s.replace(/^\//, '');
+    // 同上：剥离 'static/' 前缀，避免 <storage>/static/... 拼出不存在路径
+    relPath = s.replace(/^\//, '').replace(/^static\//i, '');
   }
   if (!relPath) return toPublicUrl(s);
   const filePath = path.join(storageLocalPath, relPath);
@@ -933,7 +934,10 @@ function resolveAgnesImageRef(value, filesBaseUrl, storageLocalPath, log) {
       || s.replace(/^https?:\/\/[^/]+\//, '');
     if (afterStatic) relPath = afterStatic.replace(/^\//, '');
   } else {
-    relPath = s.replace(/^\//, '');
+    // 去掉开头的 '/'；再剥掉 'static/' 前缀 —— 前端与分镜流程存的是 /static/projects/xxx.png，
+    // 而文件实际位于 <storage>/projects/xxx.png（storage 根下没有 static 目录）。
+    // 不剥离会拼成 <storage>/static/projects/xxx.png → 文件不存在 → 参考图被静默丢弃。
+    relPath = s.replace(/^\//, '').replace(/^static\//i, '');
   }
   if (!relPath || !storageLocalPath) return null;
   const filePath = path.join(storageLocalPath, relPath);
@@ -1516,7 +1520,8 @@ async function callImageApi(db, log, opts) {
       const refHeader = refLines
         .map(l => `[${l} — FOR REFERENCE ONLY, DO NOT copy its layout or framing]`)
         .join('\n');
-      effectivePrompt = `${refHeader}\n\n[GENERATE THIS SCENE — single continuous image, no grid, no split panels]:\n${effectivePrompt}`;
+      // 防分割约束集中在这一处（正文尾部不再重复追加同样的话），并把 no collage 一并收进来
+      effectivePrompt = `${refHeader}\n\n[GENERATE THIS SCENE — single continuous image, no grid, no split panels, no collage]:\n${effectivePrompt}`;
     }
   }
 
@@ -2127,13 +2132,21 @@ function canonicalRefKey(ref) {
   if (/^https?:\/\//i.test(s)) {
     try {
       const u = new URL(s);
-      return `${u.origin}${u.pathname}`.toLowerCase();
+      // 归一化 URL 里的 /static/ 前缀，使 http://host/static/projects/x.png
+      // 与相对路径 projects/x.png 的尾段写法保持一致（便于与本地路径比对）
+      const p = `${u.pathname}`.replace(/\/static\//i, '/');
+      return `${u.origin}${p}`.toLowerCase();
     } catch (_) {
       return s.split('?')[0].toLowerCase();
     }
   }
   try {
-    return path.normalize(s).toLowerCase();
+    // 归一化：统一分隔符 → 去开头斜杠 → 剥掉 'static/' 前缀
+    // 同一张图的两种写法（projects/x.png 与 /static/projects/x.png）必须得到同一个 key，
+    // 否则去重失效：同一张图会占掉两个参考图槽位，把后面的角色参考图挤出上限。
+    let norm = path.normalize(s).replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+    if (norm.startsWith('static/')) norm = norm.slice('static/'.length);
+    return norm;
   } catch (_) {
     return s.toLowerCase();
   }
@@ -2413,6 +2426,9 @@ module.exports = {
   canAddStoryboardCharacterRef,
   canAddStoryboardObjectRef,
   refListHasCanonical,
+  canonicalRefKey,
+  resolveImageRef,
+  resolveAgnesImageRef,
   /** 图床 URL 缓存（image_proxy_cache），供 SD2 认证等复用 */
   getProxyCache,
   setProxyCache,

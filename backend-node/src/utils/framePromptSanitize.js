@@ -39,26 +39,50 @@ function isReferenceAppearanceParen(inner) {
   return /参考图|reference\s*image/i.test(t);
 }
 
-/** 将允许出场角色的括号外貌描写统一为「参考图中的人物形象」 */
-function normalizeAllowedCharacterAppearance(text, allowedNames) {
+/**
+ * 将角色括号描写统一为「本次真正可用的依据」。
+ *
+ * - 传了 referenceBackedNames（生图阶段，知道哪些角色真的附了参考图）：
+ *   有参考图 → 「参考图中的人物形象」；没有参考图 → 回填外貌锚点（appearance），
+ *   两者都没有 → 去掉悬空指代，避免模型"照着不存在的参考图"脑补长相。
+ * - 未传（提示词生成阶段）→ 沿用旧行为：一律写「参考图中的人物形象」。
+ */
+function normalizeAllowedCharacterAppearance(text, allowedNames, opts = {}) {
+  const hasRefInfo = Array.isArray(opts.referenceBackedNames);
+  const refBacked = new Set(hasRefInfo ? opts.referenceBackedNames : []);
+  const appearanceByName = opts.appearanceByName || {};
   const hits = [];
   let out = String(text || '');
   for (const name of allowedNames || []) {
     if (!name) continue;
     const esc = escapeRegExp(name);
-    out = out.replace(new RegExp(`${esc}（([^）]*)）`, 'g'), (match, inner) => {
-      if (isReferenceAppearanceParen(inner)) return match;
-      hits.push({ name, removed_appearance: inner.slice(0, 120) });
-      return `${name}（参考图中的人物形象）`;
-    });
-    out = out.replace(new RegExp(`${esc}\\(([^)]*)\\)`, 'g'), (match, inner) => {
-      if (isReferenceAppearanceParen(inner)) return match;
-      hits.push({ name, removed_appearance: inner.slice(0, 120) });
-      return `${name}（参考图中的人物形象）`;
-    });
+    const useRef = !hasRefInfo || refBacked.has(name);
+    const appearance = !useRef ? String(appearanceByName[name] || '').trim() : '';
+    const replacement = () => {
+      if (useRef) return `${name}（参考图中的人物形象）`;
+      if (appearance) return `${name}（${appearance}）`;
+      return name;
+    };
+    const applyParen = (match, inner) => {
+      const isRefPhrase = isReferenceAppearanceParen(inner);
+      if (useRef && isRefPhrase) return match; // 已是正确指代
+      if (isRefPhrase) {
+        // 悬空指代：prompt 声称"参考图中的人物形象"，但该角色这次并没有参考图
+        hits.push({ name, reason: 'dangling_reference', replaced_with: appearance ? 'appearance' : 'removed' });
+        return replacement();
+      }
+      hits.push({
+        name,
+        removed_appearance: String(inner).slice(0, 120),
+        replaced_with: useRef ? 'reference' : (appearance ? 'appearance' : 'removed'),
+      });
+      return replacement();
+    };
+    out = out.replace(new RegExp(`${esc}（([^）]*)）`, 'g'), applyParen);
+    out = out.replace(new RegExp(`${esc}\\(([^)]*)\\)`, 'g'), applyParen);
     out = out.replace(
       new RegExp(`${esc}\\s*\\(\\s*use appearance from reference image\\s*\\)`, 'gi'),
-      `${name}（参考图中的人物形象）`
+      replacement()
     );
   }
   return { text: out, hits };
@@ -232,7 +256,8 @@ function logSanitizeReport(log, report, ctx) {
  * @param {string} prompt
  * @param {string[]} allowedNames - 本分镜勾选角色
  * @param {string[]} allDramaNames - 本剧全部角色名（用于剔除未出场角色）
- * @param {object} [opts] - { log, source, storyboard_id, frame_kind, image_gen_id, returnReport }
+ * @param {object} [opts] - { log, source, storyboard_id, frame_kind, image_gen_id, returnReport,
+ *                          referenceBackedNames, appearanceByName }
  * @returns {string|{ prompt: string, report: object }}
  */
 function sanitizeFramePrompt(prompt, allowedNames, allDramaNames, opts = {}) {
@@ -255,7 +280,10 @@ function sanitizeFramePrompt(prompt, allowedNames, allDramaNames, opts = {}) {
 
   let text = original;
 
-  const n1 = normalizeAllowedCharacterAppearance(text, allowedNames);
+  const n1 = normalizeAllowedCharacterAppearance(text, allowedNames, {
+    referenceBackedNames: opts.referenceBackedNames,
+    appearanceByName: opts.appearanceByName,
+  });
   recordStep(report, STEP_KEYS.NORMALIZE, text, n1.text, n1.hits);
   text = n1.text;
 

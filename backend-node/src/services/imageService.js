@@ -727,6 +727,12 @@ async function processImageGeneration(db, log, imageGenId) {
     let reference_context_note = null;
     /** 分镜 characters 列已显式配置时，不再用 Step2.3「台词是否出现人名」过滤参考图（以勾选为准） */
     let skipStep23PromptCharFilter = false;
+    /**
+     * 本次是否已把首帧作为「站位锁」参考注入。
+     * 首帧图本身已包含场景背景与构图，槽位紧张时场景参考图属冗余，应把名额让给角色参考图
+     * （参考图上限 total=4，而 1 站位锁 + 1 场景 + 3 角色 = 5 会溢出）。
+     */
+    let layoutLockInjected = false;
     if (row.reference_images) {
       try {
         const parsed = JSON.parse(row.reference_images);
@@ -760,22 +766,35 @@ async function processImageGeneration(db, log, imageGenId) {
           }
 
           if (firstRef) {
-            const layoutLabel = 'Image LAYOUT_LOCK: 首帧构图与人物站位参考（CRITICAL: 必须保持与此图完全一致的左右站位、人物相对位置、相机取景、整体布局，仅演化姿态/表情/结果元素，严禁交换位置或重构画面）';
+            const layoutLabel = 'Image LAYOUT_LOCK: 首帧构图/人物站位锁定参考（保持左右站位与取景一致，仅演化姿态/表情）';
             if (!reference_image_urls || reference_image_urls.length === 0) {
               reference_image_urls = [firstRef];
               reference_context_note = layoutLabel;
               reference_source = 'auto-first-frame-for-last (layout lock)';
             } else {
-              // 已存在参考时，优先插入到最前面（最高权重）
-              reference_image_urls = [firstRef, ...reference_image_urls].slice(0, refLimits.total);
-              reference_context_note = (reference_context_note ? reference_context_note + '\n' : '') + layoutLabel;
-              reference_source = (reference_source || 'mixed') + '+first-frame-layout-lock';
+              const upserted = upsertLayoutLockRef(reference_image_urls, firstRef);
+              // 标签与 ref 一一对应：站位锁在最前，故标签也置前
+              reference_context_note = layoutLabel + (reference_context_note ? '\n' + reference_context_note : '');
+              reference_image_urls = upserted.deduped
+                ? upserted.refs
+                : upserted.refs.slice(0, refLimits.total);
+              reference_source =
+                (reference_source || 'mixed') +
+                (upserted.deduped ? '+first-frame-layout-lock(dedup)' : '+first-frame-layout-lock');
+              if (upserted.deduped) {
+                log.info('[图生] 首帧站位锁与既有参考同图，已去重提升（不占额外槽位）', {
+                  id: imageGenId,
+                  dup_index: upserted.dupIndex,
+                  total_refs: reference_image_urls.length,
+                });
+              }
             }
             log.info('[图生] 尾帧自动注入首帧作为站位锁参考', {
               id: imageGenId,
               first_ref: String(firstRef).slice(0, 80),
               total_refs: reference_image_urls.length
             });
+            layoutLockInjected = true;
           } else {
             log.warn('[图生] 尾帧生成但未找到可用的首帧参考图，无法强制站位锁', { id: imageGenId, storyboard_id: row.storyboard_id });
           }
@@ -791,7 +810,15 @@ async function processImageGeneration(db, log, imageGenId) {
       if (sb) {
         const refs = [];
         const refLabels = [];
-        if (sb.scene_id) {
+        // 已注入首帧站位锁时跳过场景参考图：首帧画面本身已锁定场景背景与构图，
+        // 单独再占一个槽位会挤掉角色参考图（total=4 的硬上限下，3 角色 + 场景 + 站位锁 = 5）
+        if (sb.scene_id && layoutLockInjected) {
+          log.info('[图生] 已注入首帧站位锁，跳过场景参考图（把槽位留给角色）', {
+            id: imageGenId,
+            storyboard_id: row.storyboard_id,
+          });
+        }
+        if (sb.scene_id && !layoutLockInjected) {
           const scene = db.prepare('SELECT image_url, local_path, location FROM scenes WHERE id = ? AND deleted_at IS NULL').get(sb.scene_id);
           if (scene) {
             const locationName = scene.location || 'scene';
@@ -1338,23 +1365,42 @@ async function processImageGeneration(db, log, imageGenId) {
       }
     }
 
-    // ── Step 3.8: 单帧分镜注入防分割指令 ──────────────────────────────
-    // 当有多张参考图时，部分模型（如 Doubao）会生成左右分栏/对比布局，加入负面约束抑制该行为
-    if (isSingleStoryboard && reference_image_urls && reference_image_urls.length > 1) {
-      const antiSplitSuffix = ', single continuous scene, no split panels, no side-by-side layout, no collage';
-      if (!finalPrompt.includes('no split')) {
-        finalPrompt = finalPrompt.trimEnd() + antiSplitSuffix;
+    // ── Step 3.8: 防分割指令已收敛到单一出口 ──────────────────────────
+    // 历史实现同时在正文尾部追加 "single continuous scene, no split panels, no side-by-side
+    // layout, no collage"，而参考图标签头 / negative_prompt 里还有同样的约束，三处重复。
+    // 对 Nano-Banana 这类指令跟随模型，重复的负面陈述只会稀释有效描写，
+    // 现统一由 imageClient 的 "[GENERATE THIS SCENE — single continuous image, no grid,
+    // no split panels, no collage]" 头部 + negative_prompt 承担，此处不再追加。
+
+    // ── Step 3.9: 尾帧站位锁强制文本指令（与视觉参考图双保险）────────────────
+    // 无论是否成功注入参考图，都给尾帧 prompt 追加约束，防止模型脑补新布局（压缩为一句话，
+    // 避免百余字"铁律"条文占据提示词预算）
+    const isLastFrameForLock = isLastFrameType(row.frame_type) && rowUseFirstFrameLayoutLock(row);
+    if (isLastFrameForLock && row.storyboard_id) {
+      const layoutLockSuffix = '。【站位锁定】构图、人物左右站位与相机取景须与首帧一致，仅按 result 演化姿态/表情，禁止位置互换或重构画面。';
+      if (!finalPrompt.includes('站位锁定') && !finalPrompt.includes('CHARACTER POSITION LOCK')) {
+        finalPrompt = finalPrompt.trimEnd() + layoutLockSuffix;
       }
     }
 
-    // ── Step 3.9: 尾帧站位锁强制文本指令（与视觉参考图双保险）────────────────
-    // 无论是否成功注入参考图，都给尾帧 prompt 追加强约束，防止模型脑补新布局
-    const isLastFrameForLock = isLastFrameType(row.frame_type) && rowUseFirstFrameLayoutLock(row);
-    if (isLastFrameForLock && row.storyboard_id) {
-      const layoutLockSuffix = '。【人物站位最高铁律】必须与本分镜的首帧图片保持100%一致的构图、人物左右站位（左/中/右位置、相对距离、朝向）、相机取景和空间布局，仅允许按result描述改变角色姿态、表情、细微动作和环境结果元素，严禁任何人物位置互换或画面重新构图。违反此规则视为生成失败。';
-      if (!finalPrompt.includes('人物站位最高铁律') && !finalPrompt.includes('CHARACTER POSITION LOCK')) {
-        finalPrompt = finalPrompt.trimEnd() + layoutLockSuffix;
+    // ── Step 3.95: 画风词去重（同一 preset 的 zh/en 两份文案常被同时写进 prompt）──
+    // 画风 preset 有中英两份长文案，提示词生成时按"必须重复画风关键词"的要求被同时写入，
+    // 对图片模型是纯噪声（实测一条 prompt 里重复 217 字）。按剧集语言只保留主语言那一份。
+    try {
+      const styleZhText = (cfg?.style?.default_style_zh || '').toString().trim();
+      const styleEnText = (cfg?.style?.default_style_en || '').toString().trim();
+      const deduped = dedupePromptStyleTokens(finalPrompt, styleZhText, styleEnText, promptI18n.isEnglish(cfg));
+      if (deduped.changed) {
+        log.info('[图生] 画风词去重（zh/en 重复，仅保留主语言）', {
+          id: imageGenId,
+          dropped: deduped.dropped,
+          before_len: (finalPrompt || '').length,
+          after_len: deduped.prompt.length,
+        });
+        finalPrompt = deduped.prompt;
       }
+    } catch (styleDedupeErr) {
+      log.warn('[图生] 画风词去重跳过', { id: imageGenId, error: styleDedupeErr.message });
     }
 
     // ── Step 4: 调用图生 API ─────────────────────────────────────────
@@ -1374,12 +1420,46 @@ async function processImageGeneration(db, log, imageGenId) {
         const anchors = framePromptService.loadStoryboardCharacterNames(db, row.storyboard_id);
         const allowed = parseNamesFromAnchorLines(anchors);
         const allDrama = framePromptService.loadDramaCharacterNamesForStoryboard(db, row.storyboard_id);
+        // 本次真正附了参考图的角色（以最终 reference_context_note 的标签为准）。
+        // 没附图的角色不能继续写「（参考图中的人物形象）」——模型会照着不存在的参考图脑补长相，
+        // 或把唯一那张参考图的脸套到所有人身上；改为回填 characters.appearance 外貌锚点。
+        const referenceBackedNames = (reference_context_note || '')
+          .split('\n')
+          .map((l) => {
+            const m = String(l).match(/character appearance reference for\s+"([^"]+)"/i);
+            return m ? m[1].trim() : null;
+          })
+          .filter(Boolean);
+        const appearanceByName = {};
+        if (row.drama_id) {
+          try {
+            const rows = db.prepare(
+              'SELECT name, appearance, description FROM characters WHERE drama_id = ? AND deleted_at IS NULL'
+            ).all(Number(row.drama_id));
+            for (const c of rows) {
+              const name = String(c.name || '').trim();
+              if (!name) continue;
+              // 规整：括号内不能出现句号/分号/换行，否则下游按子句切分时会把括注劈成两句
+              let ap = String(c.appearance || c.description || '')
+                .trim()
+                .replace(/[。；;\n\r]+/g, '，')
+                .replace(/[，,]{2,}/g, '，')
+                .replace(/^[，,\s]+|[，,\s]+$/g, '');
+              if (ap.length > 80) {
+                ap = ap.slice(0, 80).replace(/[，,\s]+$/, '');
+              }
+              if (ap) appearanceByName[name] = ap;
+            }
+          } catch (_) {}
+        }
         const sanitized = sanitizeFramePrompt(finalPrompt, allowed, allDrama, {
           log,
           source: 'image_generation',
           storyboard_id: row.storyboard_id,
           frame_kind: row.frame_type,
           image_gen_id: imageGenId,
+          referenceBackedNames,
+          appearanceByName,
         });
         if (sanitized !== finalPrompt) {
           finalPrompt = sanitized;
@@ -1805,6 +1885,52 @@ function buildFullBodyPrompt(anchors, viewDesc) {
   return parts.join(', ');
 }
 
+/**
+ * 画风词去重：画风 preset 的 zh/en 两份长文案常被同时写进 prompt（提示词模板要求"重复画风关键词"），
+ * 对图片模型属于纯噪声。两份同时出现时，按剧集语言只保留主语言那一份。
+ * @param {string} prompt
+ * @param {string} styleZh - cfg.style.default_style_zh
+ * @param {string} styleEn - cfg.style.default_style_en
+ * @param {boolean} isEnglish - 剧集提示词语言是否为英文
+ * @returns {{ prompt: string, changed: boolean, dropped: 'zh'|'en'|null }}
+ */
+function dedupePromptStyleTokens(prompt, styleZh, styleEn, isEnglish) {
+  const p = String(prompt || '');
+  const zh = String(styleZh || '').trim();
+  const en = String(styleEn || '').trim();
+  if (!p || !zh || !en || zh === en) return { prompt: p, changed: false, dropped: null };
+  if (!p.includes(zh) || !p.includes(en)) return { prompt: p, changed: false, dropped: null };
+  const dropped = isEnglish ? 'zh' : 'en';
+  const out = p
+    .replace(isEnglish ? zh : en, '')
+    .replace(/[，,]\s*[，,]+/g, '，')
+    .replace(/[，,]\s*([。.])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return { prompt: out, changed: true, dropped };
+}
+
+/**
+ * 把首帧站位锁参考插到参考图列表最前（最高权重）。
+ * 去重规则：若同一张图已在列表中（含 /static/ 与相对路径两种写法，经 canonicalRefKey 归一），
+ * 则原地提升到最前，**不新增条目**——历史实现会重复插入，两个槽位被同一张图占掉，
+ * 后续角色参考图被 refLimits.total 截断剔除，而 prompt 仍声称"参考图中的人物形象"，
+ * 导致模型拿不到角色参考图只能脑补长相。
+ * @param {string[]} refList - 已有参考图列表
+ * @param {string} firstRef - 首帧图路径
+ * @returns {{ refs: string[], deduped: boolean, dupIndex: number }}
+ */
+function upsertLayoutLockRef(refList, firstRef) {
+  const list = Array.isArray(refList) ? [...refList] : [];
+  const key = imageClient.canonicalRefKey(firstRef);
+  const dupIndex = list.findIndex((r) => imageClient.canonicalRefKey(r) === key);
+  if (dupIndex >= 0) {
+    const existing = list.splice(dupIndex, 1)[0];
+    return { refs: [existing, ...list], deduped: true, dupIndex };
+  }
+  return { refs: [firstRef, ...list], deduped: false, dupIndex: -1 };
+}
+
 module.exports = {
   list,
   getById,
@@ -1816,4 +1942,6 @@ module.exports = {
   aspectRatioToSize,
   syncStoryboardCharacters,
   buildFullBodyPrompt,
+  dedupePromptStyleTokens,
+  upsertLayoutLockRef,
 };
