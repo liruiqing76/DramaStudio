@@ -92,7 +92,9 @@ function resolveImageToBuffer(value, filesBaseUrl, storageLocalPath) {
     if (afterStatic) relPath = afterStatic.replace(/^\//, '');
     else return { url: s };
   } else if (storageLocalPath) {
-    relPath = s.replace(/^\//, '');
+    // 去掉开头 '/' 后再剥 'static/' 前缀：分镜/前端存的 /static/projects/x.png
+    // 实际文件在 <storage>/projects/x.png，不剥离会拼出 <storage>/static/... 导致首尾帧/参考图静默丢失
+    relPath = s.replace(/^\//, '').replace(/^static\//i, '');
   }
 
   if (!relPath) return null;
@@ -1668,13 +1670,55 @@ function buildAgnesPictureReferencePrefix(items, log, video_gen_id) {
 
 /**
  * Agnes 提示词清洗 — 剥离分镜表结构化标签、英文摄影括注、风格标签堆
- * keyframe 模式：聚焦动作/运镜（300字）；reference/text 模式：保留场景+动作（500字）
+ * keyframe 模式：去掉风格标签堆（画面风格由首帧承载）；reference/text 模式：保留场景+动作。
+ * 两种模式统一 500 字上限（历史 keyframe 为 300 字，会把动作/运镜描述硬切掉一半，
+ * 是「同模型但观感差」的主因之一；改为先删垃圾子句、再按子句优先级保留）。
  */
 function adaptPromptForAgnes(rawPrompt, mode, log, video_gen_id) {
   if (!rawPrompt) return '';
   let p = String(rawPrompt).trim();
-  // 去掉中文标签 + 冒号后的内容（贪婪匹配到下一个标签或段落结束）
-  p = p.replace(/(?:^|。)\s*(?:场景|镜头标题|动作|结果|景别|镜头角度|运镜|氛围|情绪|音效|时长|风格)[：:][^。]*?/g, '。');
+
+  // 0) 模板残留：分镜草稿末尾的「=VideoRatio: 16:9」画幅标记（内部标记，非给模型的信息）
+  p = p.replace(/=\s*VideoRatio\s*[:：][^。；;，,\n]*/gi, '');
+
+  // 1) 垃圾子句整体删除：配乐/音效/情绪强度/时长/镜头标题 对画面质量无贡献且吞噬字数预算。
+  //    （Agnes 视频无音频轨道，音效配乐无用；镜头标题只是分镜枚举名；情绪强度与情绪重复。）
+  //    注意两点：
+  //    - 用贪婪匹配整句删净（惰性匹配只删标签、留下内容，达不到清预算的目的）；
+  //    - 锚点用 lookbehind 断言而非直接消费，否则连续子句会因前一子句吃掉句号而漏删。
+  p = p.replace(/(?:^|(?<=[。；，、]))\s*(?:配乐|音效|情绪强度|时长|镜头标题)[：:][^。]*(?:。|$)/g, '。');
+
+  // 1.5) 子句级超限裁剪：若剥离标签/括注后估算仍超 500 字，先按「子句」整体丢弃低价值内容
+  //      （氛围/情绪/景别/镜头角度），保住 场景/动作/结果/运镜/风格。
+  //      必须在剥标签前做——标签是判断子句语义的唯一依据，剥掉后就无法区分
+  //      "不安。" 是情绪还是动作描述了。
+  const ALL_LABELS = '(?:场景|镜头标题|动作|结果|景别|镜头角度|运镜|氛围|情绪|音效|时长|风格|配乐|情绪强度)';
+  const LABELED_CLAUSE_START = new RegExp(`(?<=[。；，、])\\s*(?=${ALL_LABELS}[:：])`);
+  const LOW_VALUE_CLAUSE = /^\s*(?:氛围|情绪|景别|镜头角度)[：:]/;
+  const cleanClauseLen = (s) => s
+    .replace(new RegExp(`(?:^|(?<=[。；，、]))\\s*${ALL_LABELS}[:：][^。]*?`, 'g'), '。')
+    .replace(/[（(]\s*(?:medium|wide|close|full|extreme|over-the-shoulder|dutch|low|high|bird|worm)\b[^（）()]*?(?:[（(][^（）()]*[）)][^（）()]*?)?[）)]/gi, ' ')
+    .length;
+  {
+    const clauses = p.split(LABELED_CLAUSE_START);
+    let totalClean = clauses.reduce((n, c) => n + cleanClauseLen(c), 0);
+    while (totalClean > 500) {
+      let removed = false;
+      for (let i = clauses.length - 1; i >= 0; i--) {
+        if (LOW_VALUE_CLAUSE.test(clauses[i])) {
+          totalClean -= cleanClauseLen(clauses[i]);
+          clauses.splice(i, 1);
+          removed = true;
+          break;
+        }
+      }
+      if (!removed) break; // 没有低价值子句可删，交给末尾回退截断
+    }
+    p = clauses.join('');
+  }
+
+  // 2) 去掉中文标签 + 冒号后的内容（贪婪匹配到下一个标签或段落结束）
+  p = p.replace(new RegExp(`(?:^|(?<=[。；，、]))\\s*${ALL_LABELS}[:：][^。]*?`, 'g'), '。');
   // 去掉英文摄影参数括号块（支持一层嵌套）
   p = p.replace(/[（(]\s*(?:medium|wide|close|full|extreme|over-the-shoulder|dutch|low|high|bird|worm)\b[^（）()]*?(?:[（(][^（）()]*[）)][^（）()]*?)?[）)]/gi, ' ');
   // keyframe 模式：去掉风格标签堆（photorealistic, 8k uhd 等）
@@ -1685,8 +1729,8 @@ function adaptPromptForAgnes(rawPrompt, mode, log, video_gen_id) {
   p = p.replace(/【[^】]*】/g, '').replace(/无BGM[；;]?\s*/g, '').replace(/时长[：:]\s*\d+秒[。.]?\s*/g, '');
   // 合并重复标点
   p = p.replace(/[。；]\s*[。；]+/g, '。').replace(/，\s*，+/g, '，').replace(/^[。；\s]+/, '').replace(/[。；\s]+$/, '');
-  // 长度上限
-  const maxLen = mode === 'keyframe' ? 300 : 500;
+  // 最终兜底：仍超限时从句尾回退截断（1.5 已尽力保住核心子句）
+  const maxLen = 500;
   if (p.length > maxLen) {
     p = p.slice(0, maxLen);
     const lastStop = Math.max(p.lastIndexOf('。'), p.lastIndexOf('，'), p.lastIndexOf('；'));
@@ -1719,6 +1763,27 @@ async function agnesFrameDiffRatio(bufA, bufB, log, video_gen_id) {
 }
 
 /**
+ * Agnes 视频 size 档位映射。
+ * 历史实现硬编码 '720P'，用户在界面选择的分辨率（480p/720p/1080p…）被静默忽略，
+ * 是「和同样的模型比观感差距大」的因素之一。API 请求体使用 "720P" 式档位字符串，
+ * 这里把 DB 里的分辨率（'480p'/'720p'/'1080p'/'2k'/'4k' 等）映射为档位；
+ * 不在白名单内或缺失时回退官方默认 '720P'。
+ */
+const AGNES_VIDEO_SIZES = ['480P', '540P', '720P', '1080P', '1440P', '2160P'];
+function mapResolutionToAgnesSize(resolution) {
+  const s = String(resolution || '').trim().toLowerCase();
+  if (!s) return '720P';
+  if (/^\d+p$/.test(s)) {
+    const up = s.toUpperCase();
+    if (AGNES_VIDEO_SIZES.includes(up)) return up;
+    return '720P';
+  }
+  if (s === '2k') return '1440P';
+  if (s === '4k') return '2160P';
+  return '720P';
+}
+
+/**
  * Agnes Video 2.5 Flash 适配器
  * 官方 API: POST {base}/videos
  * mode: text / keyframe (first_frame/last_frame) / reference (images数组)
@@ -1726,7 +1791,7 @@ async function agnesFrameDiffRatio(bufA, bufB, log, video_gen_id) {
  */
 async function callAgnesVideoApi(config, log, opts) {
   const {
-    prompt, model: preferredModel, duration, aspect_ratio, seed,
+    prompt, model: preferredModel, duration, aspect_ratio, resolution, seed,
     image_url, first_frame_url, last_frame_url, reference_urls,
     agnes_ref_items,
     files_base_url, storage_local_path, video_gen_id,
@@ -1805,13 +1870,14 @@ async function callAgnesVideoApi(config, log, opts) {
   //      mode=text      → 不允许任何媒体字段
   //    原实现「reference 模式也带上首尾帧」会被上游直接拒绝，导致所有
   //    "既有角色参考图、又有首帧" 的分镜成批失败。
-  //    正确策略：有参考图 → reference 模式（丢弃首尾帧）；否则有首尾帧 → keyframe 模式。
+  //    keyframe 与 reference 的取舍由调用方（videoService）按「是否存在显式首尾帧」决定：
+  //    有首尾帧 → keyframe（构图优先）；无 → reference（角色一致性优先）。
   const body = {
     model,
     prompt: '',
     mode: 'text',
     seconds: String(Math.min(12, Math.max(4, Math.round(Number(duration) || 5)))),
-    size: '720P',
+    size: mapResolutionToAgnesSize(resolution),
   };
   const AR_WHITELIST = ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16'];
   const ar = AR_WHITELIST.includes(String(aspect_ratio)) ? String(aspect_ratio) : '16:9';
@@ -1866,7 +1932,8 @@ async function callAgnesVideoApi(config, log, opts) {
 
   log.info('Agnes视频请求', {
     video_gen_id, url, model: body.model, mode: body.mode,
-    seconds: body.seconds, aspect_ratio: body.aspect_ratio,
+    seconds: body.seconds, size: body.size, aspect_ratio: body.aspect_ratio,
+    requested_resolution: resolution || '(未设置)',
     has_first_frame: !!body.first_frame, has_last_frame: !!body.last_frame,
     images_count: Array.isArray(body.images) ? body.images.length : 0,
     prompt_length: body.prompt.length, ref_urls_count: refPublic.length,
@@ -3921,6 +3988,12 @@ function resolveVolcClassicImage(rawUrl, files_base_url, storage_local_path, log
 async function callVideoApi(db, log, opts) {
   const { sanitizePrompt } = require('./contentSafety');
   opts = { ...opts, prompt: sanitizePrompt(opts.prompt) };
+  // 剥离分镜草稿残留的内部标记（=VideoRatio: 16:9 等），避免发送到任一视频模型。
+  // 该标记是给文本 AI 起草分镜用的，所有协议（火山/中转/Agnes/即梦等）都不应带到成稿。
+  opts.prompt = String(opts.prompt || '')
+    .replace(/=\s*VideoRatio\s*[:：][^。；;，,\n]*/gi, '')
+    .replace(/[。；]\s*[。；]+/g, '。')
+    .trim();
   const {
     prompt,
     model: preferredModel,
@@ -4834,4 +4907,6 @@ module.exports = {
   adaptPromptForAgnes,
   buildAgnesPictureReferencePrefix,
   agnesFrameDiffRatio,
+  mapResolutionToAgnesSize,
+  resolveImageToBuffer,
 };

@@ -289,6 +289,15 @@ function resolveStoryboardVideoReferences(db, storyboardId) {
   return items;
 }
 
+/**
+ * Agnes 模式策略：显式存在首/尾帧（含旧字段 image_url，Agnes 将其视作首帧兜底）→ 走
+ * keyframe 模式锁定构图；否则走 reference 模式（角色定妆+场景锁一致性）。
+ * Agnes 官方硬约束两者互斥，此函数是「有构图锁 vs 有角色参考」的取舍判据。
+ */
+function agnesReferencePriority(rowLike) {
+  return Boolean(rowLike && (rowLike.first_frame_url || rowLike.last_frame_url || rowLike.image_url));
+}
+
 async function processVideoGeneration(db, log, videoGenId) {
   log.info('processVideoGeneration started', { videoGenId });
   const row = db.prepare('SELECT * FROM video_generations WHERE id = ? AND deleted_at IS NULL').get(Number(videoGenId));
@@ -320,22 +329,41 @@ async function processVideoGeneration(db, log, videoGenId) {
     }
     /** Agnes reference 模式素材清单（带语义标签），用于 prompt 生成 <Picture N> 引用 */
     let agnesRefItems = null;
-    // Agnes 视频 reference 模式需「角色定妆照/服装 + 场景」锁一致性；
-    // 前端经典模式误把首尾帧塞进 reference_image_urls，导致服装漂移。
-    // 这里对 Agnes 协议自动解析分镜的角色服装图+场景图，覆盖前端传的首尾帧。
+    // Agnes 官方硬约束：reference（角色定妆+场景）与 keyframe（首尾帧）模式互斥。
+    // 首尾帧承载分镜的构图/机位/站位，是画面质量的第一来源；角色服装一致性由首帧画面
+    // 本身继承（首帧分镜图就是用角色参考图生成的）。因此**显式存在首/尾帧时优先 keyframe**，
+    // 不再自动注入角色/场景参考图；只有没有首尾帧的纯文生视频才注入定妆+场景参考。
+    // ⚠️ 历史问题：前端经典模式误把首尾帧图片路径塞进 reference_image_urls（而非
+    // first_frame_url / last_frame_url），导致本流程走了 reference 模式并丢弃真正的首尾帧，
+    // 视频退化为「无构图锁」的纯文生视频。现在以行内首尾帧为准，误塞数据天然被忽略。
+    const hasExplicitFrames = agnesReferencePriority(row);
     if (row.storyboard_id) {
       let protocol = 'openai';
       try { protocol = videoClient.resolveVideoProtocol(config); } catch (_) {}
       if (protocol === 'agnes') {
-        const autoItems = resolveStoryboardVideoReferences(db, row.storyboard_id);
-        if (autoItems.length > 0) {
-          // 角色定妆图在前、场景图在后 → 便于 prompt 用 <Picture 1..k> 指代
-          agnesRefItems = autoItems.slice(0, 5);
-          reference_urls = agnesRefItems.map((it) => it.ref);
-          log.info('[Agnes视频] 已用分镜角色服装图+场景图覆盖 reference', {
-            videoGenId, storyboard_id: row.storyboard_id, ref_count: reference_urls.length,
-            kinds: agnesRefItems.map((it) => it.kind).join(','),
+        if (hasExplicitFrames) {
+          const droppedDbRefs = reference_urls;
+          reference_urls = null;
+          agnesRefItems = null;
+          log.info('[Agnes视频] 检测到显式首/尾帧，走 keyframe 模式锁定构图，跳过角色参考图注入', {
+            videoGenId,
+            storyboard_id: row.storyboard_id,
+            has_first_frame: !!row.first_frame_url,
+            has_last_frame: !!row.last_frame_url,
+            has_image_url: !!row.image_url,
+            dropped_db_reference_urls: Array.isArray(droppedDbRefs) ? droppedDbRefs.length : 0,
           });
+        } else {
+          const autoItems = resolveStoryboardVideoReferences(db, row.storyboard_id);
+          if (autoItems.length > 0) {
+            // 角色定妆图在前、场景图在后 → 便于 prompt 用 <Picture 1..k> 指代
+            agnesRefItems = autoItems.slice(0, 5);
+            reference_urls = agnesRefItems.map((it) => it.ref);
+            log.info('[Agnes视频] 无首尾帧，已注入分镜角色服装图+场景图 reference', {
+              videoGenId, storyboard_id: row.storyboard_id, ref_count: reference_urls.length,
+              kinds: agnesRefItems.map((it) => it.kind).join(','),
+            });
+          }
         }
       }
     }
@@ -617,4 +645,5 @@ module.exports = {
   processVideoGeneration,
   resolveStoryboardVideoReferences,
   resumeVideoPolling,
+  agnesReferencePriority,
 };
