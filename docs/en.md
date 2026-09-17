@@ -265,6 +265,17 @@ Just an ordinary game developer who got excited about the AI short-drama trend a
 
 Full story, inspirations, and acknowledgements → [Author's Story](story.md)
 
+## 🏛️ Project Origins & Acknowledgements
+
+This project was **not built from scratch** — it evolves from [LocalMiniDrama](https://github.com/xuanyustudio/LocalMiniDrama), an open-source project by [xuanyustudio](https://github.com/xuanyustudio):
+
+- **2026-06**: The original codebase was adopted and gradually refactored and extended (AI short-drama generation pipeline, ComfyUI workflows, AGNES audio/video sync, channel-aware scheduling, desktop client, etc.)
+- **2026-09**: Officially renamed to **DramaStudio** and published open-source in this repository
+- **Copyright**: The original project remains the copyright of its original author. This project keeps the [MIT license](../LICENSE) (Copyright (c) 2026 [xuanyustudio](https://github.com/xuanyustudio))
+- **Acknowledgements**: Thanks to the original author xuanyustudio and early contributor hanhanbufeng for their work
+
+Upstream: **[GitHub · xuanyustudio/LocalMiniDrama](https://github.com/xuanyustudio/LocalMiniDrama)** ｜ **[Gitee · bi_shang_a/localminidrama](https://gitee.com/bi_shang_a/localminidrama)**
+
 ---
 
 ## 📄 License

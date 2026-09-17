@@ -387,6 +387,17 @@ DramaStudio/
 
 想了解项目诞生的完整故事？👉 [作者故事 & 碎碎念](docs/story.md)
 
+## 🏛️ 项目起源 & 致谢
+
+本项目**并非从零开发**，而是源自 [xuanyustudio](https://github.com/xuanyustudio) 的开源项目 **LocalMiniDrama（本地短剧助手）**，在其代码基础之上持续改造与增强而来：
+
+- **2026-06**：引入原项目代码，逐步重构并扩展功能（AI 短剧/漫剧生成链路、ComfyUI 工作流、AGNES 音视频同步、渠道差异化调度、桌面客户端等）
+- **2026-09**：正式更名为 **DramaStudio**，并以本仓库开源发布
+- **版权声明**：原项目版权归原作者所有，本项目沿用 [MIT 许可证](LICENSE)（Copyright (c) 2026 [xuanyustudio](https://github.com/xuanyustudio)）
+- **致谢**：感谢原项目作者 xuanyustudio 与早期贡献者 hanhanbufeng，让这个项目得以延续
+
+原仓库：**[GitHub · xuanyustudio/LocalMiniDrama](https://github.com/xuanyustudio/LocalMiniDrama)** ｜ **[Gitee · bi_shang_a/localminidrama](https://gitee.com/bi_shang_a/localminidrama)**
+
 ---
 
 ## 📄 License
