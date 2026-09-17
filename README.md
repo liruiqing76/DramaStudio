@@ -387,23 +387,6 @@ DramaStudio/
 
 想了解项目诞生的完整故事？👉 [作者故事 & 碎碎念](docs/story.md)
 
-有任何建议、交流、合作，欢迎加微信，或扫码加入**用户交流群**：
-
-<table>
-  <tr>
-    <td align="center">
-      <img src="docs/reference/项目截图/wx.jpg" alt="作者微信" width="180"/><br/>
-      <sub>加作者微信</sub>
-    </td>
-    <td align="center">
-      <img src="docs/reference/项目截图/微信群.jpg" alt="微信交流群" width="180"/><br/>
-      <sub>扫码进群（二维码定期更新）</sub>
-    </td>
-  </tr>
-</table>
-
-> 微信群二维码有效期约 7 天，过期请加作者微信拉入群。
-
 ---
 
 ## 📄 License

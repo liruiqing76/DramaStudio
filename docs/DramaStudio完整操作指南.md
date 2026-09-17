@@ -632,13 +632,12 @@ npm run dev
 
 ### 官方资源
 
-- **Gitee 仓库**：https://github.com/liruiqing76/DramaStudio
+- **GitHub 仓库**：https://github.com/liruiqing76/DramaStudio
 - **Issue 反馈**：https://github.com/liruiqing76/DramaStudio/issues
 
 ### 社区支持
 
-- **微信群**：扫码加入用户交流群（见 README.md）
-- **作者微信**：见 README.md
+- **Star 支持**：给仓库点 ⭐，让更多创作者发现这个工具
 
 ### 常见问题文档
 

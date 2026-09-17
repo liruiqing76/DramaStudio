@@ -27,9 +27,6 @@
           <el-button class="btn-library" title="媒体素材库" @click="$router.push('/media-library')">
             <el-icon><Files /></el-icon>素材库
           </el-button> -->
-          <el-button v-if="!vendorLockEnabled" class="btn-wechat" :title="$t('filmList.scanWechatTitle')" @click="showWechat = true">
-            <el-icon><ChatDotSquare /></el-icon>{{ $t('nav.wechat') }}
-          </el-button>
           <el-button class="btn-theme" :title="isDark ? $t('nav.switchToLight') : $t('nav.switchToDark')" @click="toggleTheme">
             <el-icon><Sunny v-if="isDark" /><Moon v-else /></el-icon>
             {{ isDark ? $t('nav.lightMode') : $t('nav.darkMode') }}
@@ -314,14 +311,6 @@
       </template>
     </el-dialog>
 
-    <!-- 微信二维码 -->
-    <el-dialog v-if="!vendorLockEnabled" v-model="showWechat" :title="$t('filmList.wechatTitle')" width="320px" align-center>
-      <div style="text-align:center;padding:8px 0 4px">
-        <img src="/wx.jpg" :alt="$t('filmList.wechatQrAlt')" style="width:240px;height:240px;object-fit:contain;border-radius:8px;" />
-        <p style="margin:12px 0 0;font-size:13px;color:var(--text-secondary,#a1a1aa);">{{ $t('filmList.wechatHint') }}</p>
-      </div>
-    </el-dialog>
-
     <!-- 图片放大预览 -->
     <Teleport to="body">
       <div v-if="previewImageUrl" class="image-preview-overlay" @click="previewImageUrl = null">
@@ -358,7 +347,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Delete, Setting, Plus, User, PictureFilled, Box, Sunny, Moon, ChatDotSquare, Download, Upload, QuestionFilled, FolderOpened, MagicStick, Files } from '@element-plus/icons-vue'
+import { Edit, Delete, Setting, Plus, User, PictureFilled, Box, Sunny, Moon, Download, Upload, QuestionFilled, FolderOpened, MagicStick, Files } from '@element-plus/icons-vue'
 import { useTheme } from '@/composables/useTheme'
 import { dramaAPI } from '@/api/drama'
 import { characterLibraryAPI } from '@/api/characterLibrary'
@@ -367,7 +356,6 @@ import { propLibraryAPI } from '@/api/propLibrary'
 import AIConfigContent from '@/components/AIConfigContent.vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import { uploadAPI } from '@/api/upload'
-import { aiAPI } from '@/api/ai'
 import { imagesAPI } from '@/api/images'
 import { taskAPI } from '@/api/task'
 
@@ -436,8 +424,6 @@ const dramas = ref([])
 const total = ref(0)
 
 const showAiConfigDialog = ref(false)
-const showWechat = ref(false)
-const vendorLockEnabled = ref(false)
 
 // 图片预览
 const previewImageUrl = ref(null)
@@ -827,10 +813,6 @@ async function onDelete(d) {
 onMounted(async () => {
   loadList()
   loadExamples()
-  try {
-    const lock = await aiAPI.getVendorLock()
-    vendorLockEnabled.value = !!lock?.enabled
-  } catch (_) {}
 })
 </script>
 
