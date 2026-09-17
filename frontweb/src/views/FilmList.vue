@@ -4,7 +4,7 @@
       <div class="header-inner">
         <h1 class="logo">
           <span class="logo-main">{{ $t('nav.appTitle') }}</span>
-          <span class="logo-sub">LocalMiniDrama</span>
+          <span class="logo-sub">DramaStudio</span>
         </h1>
         <!-- 公共资源库（左侧，靛紫调） -->
         <div class="header-library">

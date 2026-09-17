@@ -4,7 +4,7 @@
       <div class="header-inner">
         <h1 class="logo" @click="router.push('/')">
           <span class="logo-main">{{ $t('dramaDetail.appTitle') }}</span>
-          <span class="logo-sub">LocalMiniDrama</span>
+          <span class="logo-sub">DramaStudio</span>
         </h1>
         <span class="breadcrumb-sep">›</span>
         <span class="page-title">{{ drama?.title || $t('dramaDetail.pageTitle') }}</span>

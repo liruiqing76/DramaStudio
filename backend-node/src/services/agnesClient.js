@@ -1,5 +1,5 @@
 /**
- * Agnes AI Client for LocalMiniDrama
+ * Agnes AI Client for DramaStudio
  * 图片 + 视频生成 API 适配器（新加坡 Sapiens AI）
  * 
  * 实测通过：

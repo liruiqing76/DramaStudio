@@ -46,7 +46,7 @@ const router = createRouter({
 router.beforeEach((to) => {
   if (to.meta.titleKey) {
     const t = i18n.global.t
-    document.title = `${t(to.meta.titleKey)} - LocalMiniDrama`
+    document.title = `${t(to.meta.titleKey)} - DramaStudio`
   }
   return true
 })

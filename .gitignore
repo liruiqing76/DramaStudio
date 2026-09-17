@@ -37,6 +37,15 @@ last_pid.txt
 test_*.png
 test_*.jpg
 
+# 依赖与构建产物
+node_modules/
+desktop/dist/
+frontweb/*.timestamp-*.mjs
+
+# 本地临时文件
+_edge_profile/
+chat_result.json
+
 # IDE/工具缓存目录（各AI工具自动生成，勿提交）
 .claude/
 .codeartsdoer/

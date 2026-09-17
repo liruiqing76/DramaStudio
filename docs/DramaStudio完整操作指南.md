@@ -1,4 +1,4 @@
-# LocalMiniDrama 完整操作指南
+# DramaStudio 完整操作指南
 
 ## 📋 目录
 
@@ -13,7 +13,7 @@
 
 ## 项目简介
 
-**LocalMiniDrama** 是一个本地 AI 短剧生成工具，可以帮你从故事梗概自动生成完整的短剧视频。
+**DramaStudio** 是一个本地 AI 短剧生成工具，可以帮你从故事梗概自动生成完整的短剧视频。
 
 ### 核心功能
 
@@ -27,7 +27,7 @@
 ### 技术架构
 
 ```
-LocalMiniDrama/
+DramaStudio/
 ├── backend-node/          # Node.js 后端（Express + SQLite）
 ├── frontweb/              # Vue 3 前端（Vite + Element Plus）
 ├── desktop/               # Electron 桌面客户端
@@ -59,8 +59,8 @@ npm --version
 #### 2. 克隆项目
 
 ```bash
-git clone https://gitee.com/liruiqing76/MiniDrama.git
-cd MiniDrama
+git clone https://github.com/liruiqing76/DramaStudio.git
+cd DramaStudio
 ```
 
 #### 3. 安装后端依赖
@@ -96,7 +96,7 @@ npm start
 
 **成功标志**：
 ```
-✅ LocalMiniDrama API listening on port 5679
+✅ DramaStudio API listening on port 5679
 ```
 
 **测试后端**：
@@ -108,7 +108,7 @@ curl http://localhost:5679/health
 ```json
 {
   "status": "ok",
-  "app": "LocalMiniDrama API",
+  "app": "DramaStudio API",
   "version": "1.0.0"
 }
 ```
@@ -209,7 +209,7 @@ npm run dev
 
 **配置文件位置**：
 ```
-Windows: C:\Users\你的用户名\AppData\Roaming\LocalMiniDrama\backend\configs\config.yaml
+Windows: C:\Users\你的用户名\AppData\Roaming\DramaStudio\backend\configs\config.yaml
 ```
 
 ---
@@ -632,8 +632,8 @@ npm run dev
 
 ### 官方资源
 
-- **Gitee 仓库**：https://gitee.com/liruiqing76/MiniDrama
-- **Issue 反馈**：https://gitee.com/liruiqing76/MiniDrama/issues
+- **Gitee 仓库**：https://github.com/liruiqing76/DramaStudio
+- **Issue 反馈**：https://github.com/liruiqing76/DramaStudio/issues
 
 ### 社区支持
 
@@ -709,4 +709,4 @@ storage:
 
 **文档版本**：v1.0  
 **最后更新**：2026-06-14  
-**作者**：LocalMiniDrama Team
+**作者**：DramaStudio Team

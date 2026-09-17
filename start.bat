@@ -8,7 +8,7 @@ set FRONTEND_DIR=%ROOT%frontweb
 
 echo.
 echo ================================================
-echo    LocalMiniDrama 一键开发环境启动
+echo    DramaStudio 一键开发环境启动
 echo ================================================
 echo.
 
@@ -84,10 +84,10 @@ echo ================================================
 echo.
 
 echo [1/2] 后端 API 服务 (http://127.0.0.1:5679)...
-start "Backend-API" cmd /k "cd /d %BACKEND_DIR% && echo LocalMiniDrama 后端 API 服务 && echo http://127.0.0.1:5679 && echo. && npm run dev"
+start "Backend-API" cmd /k "cd /d %BACKEND_DIR% && echo DramaStudio 后端 API 服务 && echo http://127.0.0.1:5679 && echo. && npm run dev"
 
 echo [2/2] 前端页面 (http://127.0.0.1:3013)...
-start "Frontend-Web" cmd /k "cd /d %FRONTEND_DIR% && echo LocalMiniDrama 前端页面 && echo http://127.0.0.1:3013 && echo. && npm run dev"
+start "Frontend-Web" cmd /k "cd /d %FRONTEND_DIR% && echo DramaStudio 前端页面 && echo http://127.0.0.1:3013 && echo. && npm run dev"
 
 :: ====== 6. 等待并打开浏览器 ======
 timeout /t 5 /nobreak >nul

@@ -5,7 +5,7 @@
       <div class="header-inner">
         <h1 class="logo" @click="goList">
           <span class="logo-main">{{ $t('t001') }}</span>
-          <span class="logo-sub">LocalMiniDrama</span>
+          <span class="logo-sub">DramaStudio</span>
         </h1>
         <span class="breadcrumb-sep">›</span>
         <span class="page-title">{{ dramaId ? (store.drama?.title || $t('t002')) : $t('t003') }}</span>

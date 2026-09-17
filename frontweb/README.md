@@ -1,8 +1,8 @@
-# LocalMiniDrama 前端（web2）
+# DramaStudio 前端（web2）
 
-本地短剧助手的**单页**前端，实现从故事到成片的完整流程，对接 Node 后端 `backend-node`。
+DramaStudio的**单页**前端，实现从故事到成片的完整流程，对接 Node 后端 `backend-node`。
 
-**包名：** `LocalMiniDrama-film` · **版本：** `1.2.7`（与仓库根目录 [CHANGELOG](../CHANGELOG.md) 一致）
+**包名：** `dramastudio-frontend` · **版本：** `1.2.7`（与仓库根目录 [CHANGELOG](../CHANGELOG.md) 一致）
 
 ## 功能流程
 

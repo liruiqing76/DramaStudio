@@ -4,7 +4,7 @@
       <div class="header-inner">
         <h1 class="logo" @click="goList">
           <span class="logo-main">{{ $t('aiConfig.appTitle') }}</span>
-          <span class="logo-sub">LocalMiniDrama</span>
+          <span class="logo-sub">DramaStudio</span>
         </h1>
         <span class="page-title">{{ $t('aiConfig.pageTitle') }}</span>
         <el-button class="btn-back" @click="goList">

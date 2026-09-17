@@ -1,10 +1,10 @@
 <div align="center">
 
-# 🎬 本地短剧助手
+# 🎬 DramaStudio
 
 **本地 AI 短剧 & 漫剧生成工具 —— 下载即用，完全开源，数据不出本机**
 
-*LocalMiniDrama · AI-powered short drama creator*
+*DramaStudio · AI-powered short drama creator*
 
 [![version](https://img.shields.io/badge/version-1.2.7-blue?style=flat-square)](../../releases)
 [![license](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
@@ -14,7 +14,7 @@
 
 **[English](docs/en.md) | 简体中文 | [作者故事](docs/story.md)**
 
-[![Gitee](https://img.shields.io/badge/Gitee-liruiqing76%2FMiniDrama-C71D23?logo=gitee&style=flat-square)](https://gitee.com/liruiqing76/MiniDrama)
+[![GitHub](https://img.shields.io/badge/GitHub-liruiqing76%2FDramaStudio-181717?logo=github&style=flat-square)](https://github.com/liruiqing76/DramaStudio)
 
 </div>
 
@@ -138,15 +138,15 @@
 | 文件名 | 说明 | 推荐人群 |
 |--------|------|----------|
 
-| `本地短剧助手 x.x.x.exe` | 标准版免安装便携版 | 首次使用，含示例项目 |
+| `DramaStudio x.x.x.exe` | 标准版免安装便携版 | 首次使用，含示例项目 |
 
-| `本地短剧助手-Lite-x.x.x.exe` | Lite 版免安装便携版 | 已熟悉使用，包体更小 |
+| `DramaStudio-Lite-x.x.x.exe` | Lite 版免安装便携版 | 已熟悉使用，包体更小 |
 
 > **标准版 vs Lite 版**：标准版内置一个示例短剧项目，打开即可查看完整创作流程示例，适合新手上手参考；Lite 版不含示例数据，包体更小，适合已了解使用方式的用户。功能完全一致。
 
 双击运行 → 在软件「AI 配置」页填入你的 API Key → 开始创作。
 
-> 首次运行会在 `%APPDATA%\LocalMiniDrama\backend\configs\config.yaml` 生成配置文件。
+> 首次运行会在 `%APPDATA%\dramastudio-desktop\backend\configs\config.yaml` 生成配置文件。
 
 ### 方式二：开发模式运行
 
@@ -154,8 +154,8 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://gitee.com/liruiqing76/MiniDrama.git
-cd MiniDrama
+git clone https://github.com/liruiqing76/DramaStudio.git
+cd DramaStudio
 
 # 2. 启动后端（默认端口 5679）
 cd backend-node
@@ -215,7 +215,7 @@ npm run dev
 ## 🏗 项目架构
 
 ```
-LocalMiniDrama/
+DramaStudio/
 ├── backend-node/          # Node.js 后端（Express + SQLite）
 │   ├── src/
 │   │   ├── config/        # 配置加载（YAML）

@@ -1,6 +1,6 @@
 # 项目结构说明
 
-> 本文件描述 LocalMiniDrama 的实际目录结构与关键路径。
+> 本文件描述 DramaStudio 的实际目录结构与关键路径。
 > 最后更新：2026-09-12
 
 ---
@@ -8,7 +8,7 @@
 ## 顶层结构
 
 ```
-LocalMiniDrama/
+DramaStudio/
 ├── backend-node/          # 后端服务（Express + SQLite）— 核心
 ├── frontweb/              # 前端服务（Vite + Vue 3）— 核心
 ├── desktop/               # Electron 桌面端打包

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 // 显式固定 userData 目录，使开发模式与打包 exe 路径完全一致，防止 productName 变更导致路径漂移
-const USERDATA_DIR = path.join(app.getPath('appData'), 'localminidrama-desktop');
+const USERDATA_DIR = path.join(app.getPath('appData'), 'dramastudio-desktop');
 app.setPath('userData', USERDATA_DIR);
 
 const MAIN_STARTUP_LOG = path.join(USERDATA_DIR, 'main-startup.log');
@@ -25,14 +25,18 @@ process.on('unhandledRejection', (reason) => {
 
 writeMainLog(`main.js loaded packaged=${app.isPackaged} exec=${process.execPath}`);
 
-// 兼容迁移：若旧路径 LocalMiniDrama 有数据而新路径为空，自动迁移
+// 兼容迁移：若旧路径（LocalMiniDrama / localminidrama-desktop）有数据而新路径为空，自动迁移
 ;(function migrateOldUserData() {
-  const oldPath = path.join(app.getPath('appData'), 'LocalMiniDrama');
-  if (fs.existsSync(oldPath) && !fs.existsSync(USERDATA_DIR)) {
-    try {
-      fs.renameSync(oldPath, USERDATA_DIR);
-    } catch (e) {
-      // rename 跨驱动器时会失败，此时静默忽略，用户数据仍可手动迁移
+  const legacyPaths = ['LocalMiniDrama', 'localminidrama-desktop'];
+  for (const legacy of legacyPaths) {
+    const oldPath = path.join(app.getPath('appData'), legacy);
+    if (fs.existsSync(oldPath) && !fs.existsSync(USERDATA_DIR)) {
+      try {
+        fs.renameSync(oldPath, USERDATA_DIR);
+      } catch (e) {
+        // rename 跨驱动器时会失败，此时静默忽略，用户数据仍可手动迁移
+      }
+      break;
     }
   }
 })();
@@ -224,7 +228,7 @@ function createWindow(port) {
       win.hide();
       if (tray) {
         tray.displayBalloon({
-          title: '本地短剧助手',
+          title: 'DramaStudio',
           content: '已最小化到系统托盘，双击托盘图标可恢复窗口。',
         });
       }
@@ -234,7 +238,7 @@ function createWindow(port) {
     mainWindow = null;
   });
 
-  if (process.env.LOCALMINIDRAMA_DEVTOOLS === '1') {
+  if (process.env.DRAMASTUDIO_DEVTOOLS === '1') {
     win.webContents.openDevTools();
   }
 }
@@ -252,7 +256,7 @@ function createTray() {
     icon = nativeImage.createFromBuffer(Buffer.from(b64, 'base64'));
   }
   tray = new Tray(icon);
-  tray.setToolTip('本地短剧助手');
+  tray.setToolTip('DramaStudio');
   const contextMenu = Menu.buildFromTemplate([
     { label: '显示主界面', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
     { type: 'separator' },

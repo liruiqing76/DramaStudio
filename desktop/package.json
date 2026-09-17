@@ -1,9 +1,9 @@
 {
-  "name": "localminidrama-desktop",
+  "name": "dramastudio-desktop",
   "version": "1.2.7",
-  "description": "LocalMiniDrama 本地桌面客户端",
+  "description": "DramaStudio 本地桌面客户端",
   "main": "main.js",
-  "author": "LocalMiniDrama",
+  "author": "DramaStudio",
   "license": "MIT",
   "scripts": {
     "prestart": "node scripts/copy-backend.js",
@@ -36,9 +36,9 @@
     "electron-rebuild": "^3.2.9"
   },
   "build": {
-    "appId": "com.localminidrama.desktop",
-    "productName": "LocalMiniDrama",
-    "artifactName": "LocalMiniDrama-${version}.${ext}",
+    "appId": "com.dramastudio.desktop",
+    "productName": "DramaStudio",
+    "artifactName": "DramaStudio-${version}.${ext}",
     "directories": {
       "output": "release"
     },

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎬 LocalMiniDrama
+# 🎬 DramaStudio
 
 **A locally-running AI short drama & comic generator — download and run, no cloud required, fully open source**
 
@@ -92,13 +92,13 @@ This project is built entirely in JavaScript from scratch. Connect your own AI A
 ### Option A — Download exe (recommended)
 
 Go to **[Releases](../../releases)** and download the latest:
-- `LocalMiniDrama Setup x.x.x.exe` — NSIS installer
-- `LocalMiniDrama x.x.x.exe` — portable, no install needed
+- `DramaStudio Setup x.x.x.exe` — NSIS installer
+- `DramaStudio x.x.x.exe` — portable, no install needed
 
 Double-click → open **AI Config** → enter your API key → start creating.
 
 > On first launch a config file is created at:  
-> `%APPDATA%\LocalMiniDrama\backend\configs\config.yaml`
+> `%APPDATA%\dramastudio-desktop\backend\configs\config.yaml`
 
 ### Option B — Development Mode
 
@@ -106,8 +106,8 @@ Double-click → open **AI Config** → enter your API key → start creating.
 
 ```bash
 # 1. Clone
-git clone https://gitee.com/liruiqing76/MiniDrama.git
-cd MiniDrama
+git clone https://github.com/liruiqing76/DramaStudio.git
+cd DramaStudio
 
 # 2. Backend (port 5679)
 cd backend-node
@@ -146,7 +146,7 @@ You can also double-click `run_dev.bat` at the project root to **start both serv
 ## 🏗 Architecture
 
 ```
-LocalMiniDrama/
+DramaStudio/
 ├── backend-node/          # Node.js backend (Express + SQLite)
 │   ├── src/
 │   │   ├── config/        # YAML config loader
@@ -240,7 +240,7 @@ All contributions are welcome!
 
 ## ☕ Buy the Author a Coffee
 
-LocalMiniDrama is **free, open source, and runs locally** — maintained in spare time. If it saved you hours or helped ship a short drama, optional tips are warmly appreciated (any amount; totally voluntary).
+DramaStudio is **free, open source, and runs locally** — maintained in spare time. If it saved you hours or helped ship a short drama, optional tips are warmly appreciated (any amount; totally voluntary).
 
 > Tips do **not** affect features, issues, or PRs. A ⭐ Star or sharing the repo helps just as much.
 

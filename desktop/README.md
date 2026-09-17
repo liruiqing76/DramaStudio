@@ -1,4 +1,4 @@
-# LocalMiniDrama 桌面客户端
+# DramaStudio 桌面客户端
 
 基于 Electron 的本地桌面应用，内嵌 `backend-node` 与 `frontweb`，打包为 Windows exe / macOS dmg 后可直接运行。当前版本：**v1.2.7**
 
@@ -61,10 +61,10 @@ npm run dist:cn
 
 | 文件 | 说明 |
 |------|------|
-| `LocalMiniDrama Setup x.x.x.exe` | NSIS 安装包（有安装引导，可选安装目录） |
-| `LocalMiniDrama x.x.x.exe` | 便携版（单文件，无需安装，双击即用） |
+| `DramaStudio Setup x.x.x.exe` | NSIS 安装包（有安装引导，可选安装目录） |
+| `DramaStudio x.x.x.exe` | 便携版（单文件，无需安装，双击即用） |
 
-首次运行时，会在用户数据目录（如 `%APPDATA%/LocalMiniDrama`）下生成 `backend/`，包含 `configs/config.yaml`（从 example 复制）和 `data/`（数据库与文件存储），按需修改配置即可。
+首次运行时，会在用户数据目录（如 `%APPDATA%/dramastudio-desktop`）下生成 `backend/`，包含 `configs/config.yaml`（从 example 复制）和 `data/`（数据库与文件存储），按需修改配置即可。
 
 ---
 
@@ -90,7 +90,7 @@ npm run dist:cn
 双击运行 exe 时，后端日志会自动写入：
 
 ```
-%APPDATA%\LocalMiniDrama\backend\logs\app.log
+%APPDATA%\DramaStudio\backend\logs\app.log
 ```
 
 用记事本或 VS Code 打开后，点击「AI 生成角色」等按钮，查看是否有对应请求行、报错信息，便于判断是请求未发出、AI 超时还是配置有误。
@@ -98,7 +98,7 @@ npm run dist:cn
 ### 2. 从命令行运行（实时日志）
 
 ```powershell
-& "D:\path\to\release\LocalMiniDrama 1.2.7.exe"
+& "D:\path\to\release\DramaStudio 1.2.7.exe"
 ```
 
 日志会直接打印在终端，操作软件时可实时看到所有输出。
@@ -106,8 +106,8 @@ npm run dist:cn
 ### 3. 打开前端开发者工具
 
 ```powershell
-$env:LOCALMINIDRAMA_DEVTOOLS=1
-& "D:\path\to\release\LocalMiniDrama 1.2.7.exe"
+$env:DRAMASTUDIO_DEVTOOLS=1
+& "D:\path\to\release\DramaStudio 1.2.7.exe"
 ```
 
 在 Network 面板查看各 API 请求（如 `POST /api/v1/generation/characters`）是否正常发出和返回。
@@ -117,7 +117,7 @@ $env:LOCALMINIDRAMA_DEVTOOLS=1
 配置文件位于：
 
 ```
-%APPDATA%\LocalMiniDrama\backend\configs\config.yaml
+%APPDATA%\DramaStudio\backend\configs\config.yaml
 ```
 
 AI 相关配置需在软件「AI 配置」弹窗中填写并保存（会写入上述 yaml 文件）；本机网络需能访问对应 API（如 dashscope、volcengine 等）。

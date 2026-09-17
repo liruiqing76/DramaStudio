@@ -1,13 +1,13 @@
-# LocalMiniDrama 后端服务
+# DramaStudio 后端服务
 
 **Node.js + Express + SQLite · 纯 JavaScript · 无 TypeScript**
 
 → [项目主页](../README.md) | [快速开始](../docs/quickstart.md) | [AI 配置](../docs/configuration.md) | [版本历史](../docs/changelog.md) | [作者故事](../docs/story.md) | [English](../docs/en.md)
 
 **官方仓库：**
-[![Gitee](https://img.shields.io/badge/Gitee-liruiqing76%2FMiniDrama-C71D23?logo=gitee)](https://gitee.com/liruiqing76/MiniDrama)
+[![GitHub](https://img.shields.io/badge/GitHub-liruiqing76%2FDramaStudio-181717?logo=github)](https://github.com/liruiqing76/DramaStudio)
 
-> 遇到问题或有功能建议，欢迎在 [Gitee Issues](https://gitee.com/liruiqing76/MiniDrama/issues) 提交反馈。
+> 遇到问题或有功能建议，欢迎在 [Gitee Issues](https://github.com/liruiqing76/DramaStudio/issues) 提交反馈。
 
 > **本包版本：** `1.2.7`（与仓库根目录 [CHANGELOG](../CHANGELOG.md)、前端与桌面 `package.json` 对齐）
 

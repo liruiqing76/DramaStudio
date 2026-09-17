@@ -1740,7 +1740,7 @@ module.exports = {
   getRegenerateLayoutDescriptionPrompt,
 };
 
-// ── VLM 质检 prompt（移植自 VideoClaw，适配 LocalMiniDrama 分镜场景）──
+// ── VLM 质检 prompt（移植自 VideoClaw，适配 DramaStudio 分镜场景）──
 
 /**
  * 单帧分镜图 VLM 质检 prompt

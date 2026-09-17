@@ -19,7 +19,7 @@ export default {
     "export": "Export Project"
   },
   "nav": {
-    "appTitle": "LocalMiniDrama",
+    "appTitle": "DramaStudio",
     "materialCharacter": "Characters",
     "materialScene": "Scenes",
     "materialProp": "Props",
@@ -163,7 +163,7 @@ export default {
     "genreHorror": "Horror"
   },
   "aiConfig": {
-    "appTitle": "LocalMiniDrama",
+    "appTitle": "DramaStudio",
     "pageTitle": "AI Configuration",
     "back": "Back"
   },
@@ -433,7 +433,7 @@ export default {
     "deleteFailed": "Delete failed: "
   },
   "dramaDetail": {
-    "appTitle": "LocalMiniDrama",
+    "appTitle": "DramaStudio",
     "pageTitle": "Drama Management",
     "backToList": "Back to List",
     "switchToLight": "Switch to light mode",
@@ -901,7 +901,7 @@ export default {
     "msgImportParseError": "File parse error"
   },
   "filmCreate": {
-    "t001": "本地短剧助手",
+    "t001": "DramaStudio",
     "t002": "Project",
     "t003": "新建故事",
     "t004": "选择集数",
@@ -1680,7 +1680,7 @@ export default {
     "boardView": "Board View",
     "listView": "List View"
   },
-  "t001": "本地短剧助手",
+  "t001": "DramaStudio",
   "t002": "Project",
   "t003": "新建故事",
   "t004": "选择集数",

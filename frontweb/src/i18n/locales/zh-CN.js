@@ -19,7 +19,7 @@ export default {
     "export": "导出项目"
   },
   "nav": {
-    "appTitle": "本地短剧助手",
+    "appTitle": "DramaStudio",
     "materialCharacter": "素材角色",
     "materialScene": "素材场景",
     "materialProp": "素材道具",
@@ -163,7 +163,7 @@ export default {
     "genreHorror": "恐怖"
   },
   "aiConfig": {
-    "appTitle": "本地短剧助手",
+    "appTitle": "DramaStudio",
     "pageTitle": "AI 配置",
     "back": "返回"
   },
@@ -433,7 +433,7 @@ export default {
     "deleteFailed": "删除失败: "
   },
   "dramaDetail": {
-    "appTitle": "本地短剧助手",
+    "appTitle": "DramaStudio",
     "pageTitle": "剧集管理",
     "backToList": "返回列表",
     "switchToLight": "切换到浅色模式",
@@ -901,7 +901,7 @@ export default {
     "msgImportParseError": "文件解析错误"
   },
   "filmCreate": {
-    "t001": "本地短剧助手",
+    "t001": "DramaStudio",
     "t002": "项目",
     "t003": "新建故事",
     "t004": "选择集数",
@@ -1680,7 +1680,7 @@ export default {
     "boardView": "看板视图",
     "listView": "列表视图"
   },
-  "t001": "本地短剧助手",
+  "t001": "DramaStudio",
   "t002": "项目",
   "t003": "新建故事",
   "t004": "选择集数",
